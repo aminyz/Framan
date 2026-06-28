@@ -1,0 +1,12 @@
+{
+  "name": "minddock-desktop-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pinned Electron runtime for MindDock desktop.",
+  "devDependencies": {
+    "electron": "42.5.0"
+  },
+  "dependencies": {
+    "minddock": "file:.."
+  }
+}

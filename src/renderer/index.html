@@ -1,0 +1,85 @@
+﻿<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MindDock</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">M</div>
+          <div>
+            <strong>MindDock</strong>
+            <span>Workspace</span>
+          </div>
+        </div>
+        <nav id="appNav" class="app-nav" aria-label="Apps"></nav>
+        <div class="sidebar-footer">
+          <button id="notifyNowButton" class="ghost-button" type="button">یادآوری امروز</button>
+          <small id="saveState">آماده</small>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p id="todayLabel" class="eyebrow"></p>
+            <h1 id="appTitle">MindDock</h1>
+          </div>
+          <div class="topbar-actions">
+            <button id="quickAddButton" class="primary-button" type="button">تسک جدید</button>
+          </div>
+        </header>
+        <section id="appRoot" class="app-root" aria-live="polite"></section>
+      </main>
+    </div>
+
+    <dialog id="taskDialog" class="dialog">
+      <form id="taskForm" method="dialog">
+        <header>
+          <h2 id="taskDialogTitle">تسک جدید</h2>
+          <button class="icon-button" id="closeTaskDialogButton" type="button" aria-label="بستن">×</button>
+        </header>
+        <input type="hidden" id="taskId" />
+        <label>
+          عنوان
+          <input id="taskTitle" required maxlength="120" autocomplete="off" />
+        </label>
+        <label>
+          تاریخ
+          <input id="taskDate" type="date" required />
+        </label>
+        <div class="form-grid">
+          <label>
+            اولویت
+            <select id="taskPriority">
+              <option value="low">کم</option>
+              <option value="medium">متوسط</option>
+              <option value="high">زیاد</option>
+            </select>
+          </label>
+          <label>
+            پروژه
+            <input id="taskProject" maxlength="60" autocomplete="off" />
+          </label>
+        </div>
+        <label>
+          یادداشت
+          <textarea id="taskNote" rows="4" maxlength="600"></textarea>
+        </label>
+        <footer>
+          <button id="deleteTaskButton" class="danger-button" type="button">حذف</button>
+          <span></span>
+          <button class="ghost-button" id="cancelTaskButton" type="button">انصراف</button>
+          <button class="primary-button" value="default" type="submit">ذخیره</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <script type="module" src="./renderer.js"></script>
+  </body>
+</html>
+
