@@ -258,3 +258,41 @@ body{font-family:'Segoe UI',Tahoma,system-ui,sans-serif;background:var(--bg);col
 .report-empty{color:var(--txt3);text-align:center;padding:24px;font-size:13px}
 
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ── Deadline ─────────────────────────────────── */
+.deadline-badge{font-size:11px;padding:2px 8px;border-radius:8px;font-weight:600;flex-shrink:0}
+.dl-ok    {background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.2)}
+.dl-near  {background:rgba(245,158,11,.12);color:#fcd34d;border:1px solid rgba(245,158,11,.2)}
+.dl-late  {background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+input[type="date"].inp{color-scheme:dark}
+
+/* ── Analytics Tabs ───────────────────────────── */
+.an-tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:4px;margin-bottom:20px;width:fit-content;box-shadow:var(--sh2)}
+.an-tab{background:none;border:none;border-radius:var(--r2);color:var(--txt2);cursor:pointer;font-family:inherit;font-size:14px;font-weight:500;padding:8px 22px;transition:all var(--t)}
+.an-tab:hover{color:var(--txt)}.an-tab.active{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;font-weight:600;box-shadow:0 2px 10px rgba(99,102,241,.35)}
+
+/* ── Weekly Report ────────────────────────────── */
+.wr-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.wr-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;text-align:center;box-shadow:var(--sh2)}
+.wr-val{font-size:28px;font-weight:800;color:var(--acc2)}.wr-lbl{font-size:11px;color:var(--txt2);margin-top:4px}
+.wr-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.wr-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px;box-shadow:var(--sh2)}
+.wr-panel h3{font-size:14px;font-weight:600;margin-bottom:12px;color:var(--txt)}
+.wr-day-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.wr-day-row:last-child{border-bottom:none}
+.wr-day-name{width:80px;color:var(--txt2);flex-shrink:0}
+.wr-day-bar-wrap{flex:1;height:6px;background:var(--border2);border-radius:3px;overflow:hidden}
+.wr-day-bar{height:100%;background:linear-gradient(90deg,#6366f1,#818cf8);border-radius:3px}
+.wr-day-min{width:50px;text-align:left;font-weight:600;color:var(--acc2);font-size:12px}
+.wr-day-tasks{font-size:11px;color:var(--txt3)}
+.subj-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.subj-row:last-child{border-bottom:none}
+.subj-name{flex:1;color:var(--txt)}.subj-done{font-weight:700;color:var(--ok)}.subj-total{color:var(--txt3)}
+.wr-task-item{font-size:12px;color:var(--txt2);padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:6px}
+.wr-task-item:last-child{border-bottom:none}
+.wr-empty{text-align:center;padding:40px;color:var(--txt3)}
+
+/* ── Settings Toggle ──────────────────────────── */
+.toggle-lbl{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--txt2)}
+.toggle-lbl input{cursor:pointer;accent-color:var(--acc);width:16px;height:16px}
+.toggle-txt{color:var(--txt2)}

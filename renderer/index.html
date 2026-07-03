@@ -55,7 +55,7 @@
     <section class="sec hidden" id="sec-tasks">
       <div class="sec-head"><h1>مدیریت وظایف</h1></div>
       <div class="task-add-row">
-        <input id="task-inp" class="inp flex1" type="text" placeholder="وظیفه جدید… (Enter)">
+        <input id="task-inp" class="inp flex1" type="text" placeholder="وظیفه جدید… (Enter)"><input id="task-deadline" class="inp" type="date" title="مهلت (اختیاری)" style="width:150px">
         <select id="task-prio" class="sel"><option value="high">🔴 مهم</option><option value="medium" selected>🟡 متوسط</option><option value="low">🟢 عادی</option></select>
         <button class="btn primary" id="task-add-btn">+ افزودن</button>
       </div>
@@ -115,17 +115,35 @@
     <!-- ══ Analytics ══ -->
     <section class="sec hidden" id="sec-analytics">
       <div class="sec-head"><h1>آنالیز عملکرد</h1></div>
-      <div class="an-range-row">
-        <button class="fb active" data-days="7">۷ روز</button>
-        <button class="fb" data-days="14">۱۴ روز</button>
-        <button class="fb" data-days="30">۳۰ روز</button>
+      <div class="an-tabs">
+        <button class="an-tab active" data-tab="chart">📈 نمودار</button>
+        <button class="an-tab" data-tab="weekly">📋 گزارش هفتگی</button>
       </div>
-      <div class="panel mb20"><div class="panel-hdr"><h2>دقایق مطالعه</h2><span class="an-total-lbl" id="an-total-lbl"></span></div><div class="chart-wrap" id="chart-main"></div></div>
-      <div class="an-cards-row">
-        <div class="an-card"><div class="an-ico">🏆</div><div class="an-val" id="an-best">—</div><div class="an-lbl">بهترین روز (دقیقه)</div></div>
-        <div class="an-card"><div class="an-ico">📊</div><div class="an-val" id="an-avg">—</div><div class="an-lbl">میانگین روزانه</div></div>
-        <div class="an-card"><div class="an-ico">⏱️</div><div class="an-val" id="an-total">—</div><div class="an-lbl">مجموع دقایق</div></div>
-        <div class="an-card"><div class="an-ico">🎯</div><div class="an-val" id="an-sessions">—</div><div class="an-lbl">مجموع نشست</div></div>
+
+      <!-- نمودار -->
+      <div id="an-tab-chart">
+        <div class="an-range-row">
+          <button class="fb active" data-days="7">۷ روز</button>
+          <button class="fb" data-days="14">۱۴ روز</button>
+          <button class="fb" data-days="30">۳۰ روز</button>
+        </div>
+        <div class="panel mb20"><div class="panel-hdr"><h2>دقایق مطالعه</h2><span class="an-total-lbl" id="an-total-lbl"></span></div><div class="chart-wrap" id="chart-main"></div></div>
+        <div class="an-cards-row">
+          <div class="an-card"><div class="an-ico">🏆</div><div class="an-val" id="an-best">—</div><div class="an-lbl">بهترین روز (دقیقه)</div></div>
+          <div class="an-card"><div class="an-ico">📊</div><div class="an-val" id="an-avg">—</div><div class="an-lbl">میانگین روزانه</div></div>
+          <div class="an-card"><div class="an-ico">⏱️</div><div class="an-val" id="an-total">—</div><div class="an-lbl">مجموع دقایق</div></div>
+          <div class="an-card"><div class="an-ico">🎯</div><div class="an-val" id="an-sessions">—</div><div class="an-lbl">مجموع نشست</div></div>
+        </div>
+      </div>
+
+      <!-- گزارش هفتگی -->
+      <div id="an-tab-weekly" class="hidden">
+        <div class="cal-nav" style="margin-bottom:18px">
+          <button class="btn ghost sm" id="wr-prev">←</button>
+          <span class="cal-nav-lbl" id="wr-lbl"></span>
+          <button class="btn ghost sm" id="wr-next">→</button>
+        </div>
+        <div id="wr-body"></div>
       </div>
     </section>
 
@@ -216,7 +234,30 @@
           <div class="setting-row" id="total-stats-row"><div class="sr-info"><span class="sr-name">در حال بارگذاری…</span></div></div>
         </div>
         <div class="settings-group">
-          <div class="sg-title">📁 مدیریت داده‌ها</div>
+          <div class="sg-title">🧹 پاک‌سازی خودکار</div>
+          <div class="setting-row">
+            <div class="sr-info">
+              <span class="sr-name">نگه‌داری داده تا چند روز</span>
+              <span class="sr-desc">جلسات تمرکز، تسک‌های تقویم، و تسک‌های انجام‌شده‌ی قدیمی‌تر از این مدت پاک می‌شوند. یادداشت‌ها هیچ‌وقت پاک نمیشن.</span>
+            </div>
+            <div class="goal-inp-wrap">
+              <input type="number" id="cleanup-days-inp" class="inp" style="width:80px" min="7" max="365" value="90">
+              <span style="color:var(--txt2);font-size:13px">روز</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="sr-info">
+              <span class="sr-name">پاک‌سازی خودکار هنگام شروع</span>
+              <span class="sr-desc">هر بار که اپ باز میشه، داده‌های قدیمی رو خودکار پاک کن</span>
+            </div>
+            <label class="toggle-lbl"><input type="checkbox" id="cleanup-auto-chk" checked><span class="toggle-txt">فعال</span></label>
+          </div>
+          <div class="setting-row">
+            <div class="sr-info"><span class="sr-name">پاک‌سازی دستی همین الان</span></div>
+            <button class="btn ghost sm" id="run-cleanup-btn">🧹 پاک‌سازی</button>
+          </div>
+          <div id="cleanup-result" style="padding:0 18px 14px;font-size:12px;color:var(--ok)"></div>
+        </div>
           <div class="setting-row">
             <div class="sr-info"><span class="sr-name">پاک کردن همه داده‌ها</span><span class="sr-desc">تمام وظایف، تقویم، نشست‌ها و یادداشت‌ها پاک می‌شوند. برگشت‌پذیر نیست!</span></div>
             <button class="btn danger" id="clear-data-btn">🗑 پاک کردن</button>

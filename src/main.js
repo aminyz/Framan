@@ -17,8 +17,7 @@ function fetchURL(url, redirects=0) {
         if(res.statusCode>=300&&res.statusCode<400&&res.headers.location)
           return fetchURL(res.headers.location,redirects+1).then(resolve).catch(reject);
         let data=''; res.setEncoding('utf8');
-        res.on('data',c=>data+=c);
-        res.on('end',()=>resolve(data));
+        res.on('data',c=>data+=c); res.on('end',()=>resolve(data));
       });
       req.on('error',reject);
       req.on('timeout',()=>{req.destroy();reject(new Error('timeout'));});
@@ -29,8 +28,7 @@ function parseRSS(xml) {
   const clean=s=>(s||'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/<[^>]*>/g,' ').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').trim();
   const get=(src,tag)=>{const m=new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`,'i').exec(src);return m?clean(m[1]):'';};
   const attr=(src,tag,a)=>{const m=new RegExp(`<${tag}[^>]*\\s${a}="([^"]*)"`,'i').exec(src);return m?m[1].trim():'';};
-  const items=[];
-  const rss=(xml.match(/<item[\s>]([\s\S]*?)<\/item>/gi)||[]);
+  const items=[], rss=(xml.match(/<item[\s>]([\s\S]*?)<\/item>/gi)||[]);
   if(rss.length){
     for(const item of rss.slice(0,10)){
       items.push({title:get(item,'title')||'بدون عنوان',link:(get(item,'link')||attr(item,'link','href')).trim(),date:get(item,'pubDate')||get(item,'dc:date')||'',desc:clean(get(item,'description')||get(item,'summary')).slice(0,200)});
@@ -46,7 +44,7 @@ function parseRSS(xml) {
 // ── Notifications ─────────────────────────────────────────────────────────────
 function sendReminder() {
   if(!Notification.isSupported()) return;
-  const today=new Date().toISOString().slice(0,10);
+  const today=storage.localDateISO();
   const tasks=storage.getCalByDate(today).filter(t=>!t.done);
   if(!tasks.length) return;
   const body=tasks.slice(0,6).map(t=>`• ${t.title}`).join('\n')+(tasks.length>6?`\nو ${tasks.length-6} مورد دیگر…`:'');
@@ -61,48 +59,60 @@ function scheduleMidnight() {
   setTimeout(()=>{startHourly();scheduleMidnight();},next.getTime()-Date.now());
 }
 
-// ── Window ────────────────────────────────────────────────────────────────────
+// ── Window ─────────────────────────────────────────────────────────────────────
 function createWindow() {
-  win=new BrowserWindow({width:1350,height:880,minWidth:960,minHeight:640,backgroundColor:'#0a0a0f',title:'MindDock',webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false}});
+  win=new BrowserWindow({width:1350,height:880,minWidth:960,minHeight:640,backgroundColor:'#0a0a0f',title:'MindDock',
+    webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false}});
   win.loadFile(path.join(__dirname,'../renderer/index.html'));
   win.setMenuBarVisibility(false);
 }
+
 app.whenReady().then(()=>{
-  storage.init(); createWindow();
+  storage.init();
+  // اجرای cleanup خودکار هنگام شروع
+  const cs=storage.getCleanupSettings();
+  if(cs.autoCleanup) storage.cleanupOldData(cs.daysToKeep);
+
+  createWindow();
   setTimeout(()=>{const h=new Date().getHours();if(h>=8&&h<=22)sendReminder();},5000);
   startHourly(); scheduleMidnight();
   app.on('activate',()=>{if(!BrowserWindow.getAllWindows().length)createWindow();});
 });
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 
-// ── IPC ───────────────────────────────────────────────────────────────────────
-ipcMain.handle('get-tasks',      ()        => storage.getTasks());
-ipcMain.handle('add-task',       (_,d)     => storage.addTask(d));
-ipcMain.handle('toggle-task',    (_,id)    => storage.toggleTask(id));
-ipcMain.handle('delete-task',    (_,id)    => storage.deleteTask(id));
-ipcMain.handle('get-cal-date',   (_,date)  => storage.getCalByDate(date));
-ipcMain.handle('get-cal-range',  (_,{s,e}) => storage.getCalByRange(s,e));
-ipcMain.handle('add-cal-task',   (_,d)     => storage.addCalTask(d));
-ipcMain.handle('toggle-cal',     (_,id)    => storage.toggleCalTask(id));
-ipcMain.handle('delete-cal',     (_,id)    => storage.deleteCalTask(id));
-ipcMain.handle('get-month',      (_,ym)    => storage.getMonthStats(ym));
-ipcMain.handle('get-date-range-stats', (_,dates) => storage.getDateRangeStats(dates));
-ipcMain.handle('get-day-report', (_,date)  => storage.getDayReport(date));
-ipcMain.handle('add-session',    (_,d)     => { const s=storage.addSession(d); storage.addXP(d.completed?(d.studySeconds>=600?50:20):10); return s; });
-ipcMain.handle('get-stats',      ()        => storage.getTodayStats());
-ipcMain.handle('clear-data',     ()        => storage.clearAllData());
-ipcMain.handle('get-analytics',  (_,days)  => storage.getAnalyticsData(days||7));
-ipcMain.handle('get-gamif',      ()        => storage.getGamif());
-ipcMain.handle('get-weekly-min', ()        => storage.getWeeklyStudyMinutes());
-ipcMain.handle('task-xp',        ()        => storage.addXP(15));
-ipcMain.handle('get-notes',      ()        => storage.getNotes());
-ipcMain.handle('add-note',       (_,d)     => storage.addNote(d));
-ipcMain.handle('update-note',    (_,{id,...d}) => storage.updateNote(id,d));
-ipcMain.handle('delete-note',    (_,id)    => storage.deleteNote(id));
-ipcMain.handle('get-feeds',      ()        => storage.getFeeds());
-ipcMain.handle('add-feed',       (_,d)     => storage.addFeed(d));
-ipcMain.handle('delete-feed',    (_,id)    => storage.deleteFeed(id));
-ipcMain.handle('fetch-feed',     async(_,{id,url})=>{
+// ── IPC ────────────────────────────────────────────────────────────────────────
+ipcMain.handle('get-tasks',       ()         => storage.getTasks());
+ipcMain.handle('add-task',        (_,d)      => storage.addTask(d));
+ipcMain.handle('toggle-task',     (_,id)     => storage.toggleTask(id));
+ipcMain.handle('delete-task',     (_,id)     => storage.deleteTask(id));
+ipcMain.handle('update-deadline', (_,{id,deadline}) => storage.updateTaskDeadline(id,deadline));
+
+ipcMain.handle('get-cal-date',    (_,date)   => storage.getCalByDate(date));
+ipcMain.handle('get-cal-range',   (_,{s,e})  => storage.getCalByRange(s,e));
+ipcMain.handle('add-cal-task',    (_,d)      => storage.addCalTask(d));
+ipcMain.handle('toggle-cal',      (_,id)     => storage.toggleCalTask(id));
+ipcMain.handle('delete-cal',      (_,id)     => storage.deleteCalTask(id));
+ipcMain.handle('get-month',       (_,ym)     => storage.getMonthStats(ym));
+ipcMain.handle('get-date-range-stats',(_,d)  => storage.getDateRangeStats(d));
+ipcMain.handle('get-day-report',  (_,date)   => storage.getDayReport(date));
+ipcMain.handle('get-weekly-report',(_,{s,e}) => storage.getWeeklyReport(s,e));
+
+ipcMain.handle('add-session',     (_,d)      => { const s=storage.addSession(d); storage.addXP(d.completed?(d.studySeconds>=600?50:20):10); return s; });
+ipcMain.handle('get-stats',       ()         => storage.getTodayStats());
+ipcMain.handle('get-analytics',   (_,days)   => storage.getAnalyticsData(days||7));
+ipcMain.handle('get-gamif',       ()         => storage.getGamif());
+ipcMain.handle('get-weekly-min',  ()         => storage.getWeeklyStudyMinutes());
+ipcMain.handle('task-xp',         ()         => storage.addXP(15));
+
+ipcMain.handle('get-notes',       ()         => storage.getNotes());
+ipcMain.handle('add-note',        (_,d)      => storage.addNote(d));
+ipcMain.handle('update-note',     (_,{id,...d}) => storage.updateNote(id,d));
+ipcMain.handle('delete-note',     (_,id)     => storage.deleteNote(id));
+
+ipcMain.handle('get-feeds',       ()         => storage.getFeeds());
+ipcMain.handle('add-feed',        (_,d)      => storage.addFeed(d));
+ipcMain.handle('delete-feed',     (_,id)     => storage.deleteFeed(id));
+ipcMain.handle('fetch-feed',      async(_,{id,url})=>{
   try {
     const cached=storage.getCachedFeed(id);
     if(cached&&(Date.now()-new Date(cached.fetchedAt).getTime())<15*60*1000) return {ok:true,...cached};
@@ -110,12 +120,17 @@ ipcMain.handle('fetch-feed',     async(_,{id,url})=>{
     const articles=parseRSS(xml);
     if(!articles.length) return {ok:false,error:'مقاله‌ای یافت نشد. لطفاً آدرس RSS را بررسی کن.'};
     const data={articles,fetchedAt:new Date().toISOString()};
-    storage.setCachedFeed(id,data);
-    return {ok:true,...data};
+    storage.setCachedFeed(id,data); return {ok:true,...data};
   } catch(e){ return {ok:false,error:`خطا: ${e.message}`}; }
 });
-ipcMain.handle('get-goal',       ()        => storage.getGoal());
-ipcMain.handle('set-goal',       (_,min)   => storage.setGoal(min));
+
+ipcMain.handle('get-goal',             ()      => storage.getGoal());
+ipcMain.handle('set-goal',             (_,min) => storage.setGoal(min));
+ipcMain.handle('get-cleanup-settings', ()      => storage.getCleanupSettings());
+ipcMain.handle('set-cleanup-settings', (_,s)   => storage.setCleanupSettings(s));
+ipcMain.handle('run-cleanup',          (_,days)=> storage.cleanupOldData(days));
+ipcMain.handle('clear-data',           ()      => storage.clearAllData());
+
 ipcMain.handle('notify',         (_,{title,body}) => { if(Notification.isSupported()) new Notification({title,body}).show(); });
 ipcMain.handle('test-notify',    ()        => sendReminder());
 ipcMain.handle('resched-notifs', ()        => startHourly());
