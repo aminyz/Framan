@@ -135,3 +135,80 @@ ipcMain.handle('notify',         (_,{title,body}) => { if(Notification.isSupport
 ipcMain.handle('test-notify',    ()        => sendReminder());
 ipcMain.handle('resched-notifs', ()        => startHourly());
 ipcMain.handle('open-url',       (_,url)   => shell.openExternal(url));
+
+// ── Recurring tasks ───────────────────────────────────────────────────────────
+ipcMain.handle('add-recurring-cal', (_, d) => storage.addRecurringCalTasks(d));
+
+// ── AI Assistant (OpenRouter) ─────────────────────────────────────────────────
+ipcMain.handle('ai-chat', async (_, { messages, apiKey, aiModel }) => {
+  if (!apiKey) return { ok: false, error: 'کلید API وارد نشده — از تنظیمات اضافه کن.' };
+  try {
+    const https = require('https');
+    const body  = JSON.stringify({
+      model: aiModel || 'meta-llama/llama-3.3-70b-instruct:free',
+      messages,
+      max_tokens: 600,
+    });
+    const result = await new Promise((resolve, reject) => {
+      const req = https.request({
+        hostname: 'openrouter.ai', path: '/api/v1/chat/completions',
+        method: 'POST', timeout: 30000,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://github.com/aminyz/MindDock',
+          'X-Title': 'MindDock Productivity Assistant',
+        },
+      }, res => {
+        let data = '';
+        res.on('data', c => data += c);
+        res.on('end', () => {
+          try { resolve(JSON.parse(data)); }
+          catch { reject(new Error('parse error')); }
+        });
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+      req.write(body); req.end();
+    });
+    if (result.error) return { ok: false, error: result.error.message || 'خطای API' };
+    const text = result.choices?.[0]?.message?.content || '';
+    return { ok: true, text };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// ── AI Settings ───────────────────────────────────────────────────────────────
+const { safeStorage } = require('electron');
+ipcMain.handle('save-api-key', (_, key) => {
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      const buf = safeStorage.encryptString(key);
+      require('fs').writeFileSync(require('path').join(app.getPath('userData'), 'ai-key.enc'), buf);
+    } else {
+      require('fs').writeFileSync(require('path').join(app.getPath('userData'), 'ai-key.txt'), key, 'utf8');
+    }
+    return { ok: true };
+  } catch(e) { return { ok: false }; }
+});
+ipcMain.handle('load-api-key', () => {
+  try {
+    const p1 = require('path').join(app.getPath('userData'), 'ai-key.enc');
+    const p2 = require('path').join(app.getPath('userData'), 'ai-key.txt');
+    const fs = require('fs');
+    if (fs.existsSync(p1) && safeStorage.isEncryptionAvailable())
+      return safeStorage.decryptString(fs.readFileSync(p1));
+    if (fs.existsSync(p2)) return fs.readFileSync(p2, 'utf8');
+    return '';
+  } catch { return ''; }
+});
+
+ipcMain.handle('save-ai-model', (_, model) => {
+  try { require('fs').writeFileSync(require('path').join(app.getPath('userData'), 'ai-model.txt'), model, 'utf8'); return {ok:true}; }
+  catch { return {ok:false}; }
+});
+ipcMain.handle('load-ai-model', () => {
+  try { const p=require('path').join(app.getPath('userData'),'ai-model.txt'); const fs=require('fs'); return fs.existsSync(p)?fs.readFileSync(p,'utf8'):'meta-llama/llama-3.3-70b-instruct:free'; }
+  catch { return 'meta-llama/llama-3.3-70b-instruct:free'; }
+});

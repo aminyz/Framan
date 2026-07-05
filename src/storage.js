@@ -310,3 +310,31 @@ module.exports = {
   clearAllData,
   localDateISO,
 };
+
+// ── Recurring / Batch Cal Tasks ───────────────────────────────────────────────
+/**
+ * افزودن یک تسک به چند روز پشت سر هم
+ * dates: آرایه‌ای از رشته‌های ISO مثل ['2026-06-30', '2026-07-01', ...]
+ */
+function addRecurringCalTasks({ title, period, priority, subject, notifyEnabled, dates }) {
+  const arr = getCalTasks();
+  const now  = new Date().toISOString();
+  const added = [];
+  for (const date of dates) {
+    // جلوگیری از تکراری شدن (همون عنوان + همون روز + همون دوره)
+    const dup = arr.find(t => t.date === date && t.title === title.trim() && t.period === (period||'anytime'));
+    if (dup) continue;
+    const t = {
+      id: `c${Date.now()}_${date}`, title: title.trim(), date,
+      period: period||'anytime', priority: priority||'medium',
+      subject: subject||'', done: false, completedAt: null,
+      notifyEnabled: notifyEnabled !== false,
+      recurring: true, createdAt: now,
+    };
+    arr.push(t); added.push(t);
+  }
+  wr('cal-tasks.json', arr);
+  return { count: added.length };
+}
+
+module.exports.addRecurringCalTasks = addRecurringCalTasks;

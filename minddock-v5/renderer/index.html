@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>MindDock</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo"><span class="logo-icon">⚓</span><span class="logo-txt">MindDock</span></div>
+    <nav class="nav">
+      <button class="ni active" data-sec="dashboard"><span class="ni-icon">📊</span><span>داشبورد</span></button>
+      <button class="ni" data-sec="tasks">          <span class="ni-icon">✅</span><span>وظایف</span></button>
+      <button class="ni" data-sec="focus">          <span class="ni-icon">🎯</span><span>تمرکز</span></button>
+      <button class="ni" data-sec="calendar">       <span class="ni-icon">📅</span><span>تقویم</span></button>
+      <button class="ni" data-sec="analytics">      <span class="ni-icon">📈</span><span>آنالیز</span></button>
+      <button class="ni" data-sec="notes">          <span class="ni-icon">📝</span><span>یادداشت</span></button>
+      <button class="ni" data-sec="news">           <span class="ni-icon">📰</span><span>اخبار</span></button>
+      <button class="ni" data-sec="ai">             <span class="ni-icon">🤖</span><span>دستیار AI</span></button>
+      <button class="ni" data-sec="settings">       <span class="ni-icon">⚙️</span><span>تنظیمات</span></button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="streak-badge" id="sb-streak"><span>🔥</span><span id="sb-streak-val">0</span><span>روز</span></div>
+      <div class="sidebar-date" id="sidebar-date"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ══ Dashboard ══ -->
+    <section class="sec active" id="sec-dashboard">
+      <div class="sec-head"><h1>داشبورد امروز</h1><p id="greeting" class="sub"></p></div>
+      <div class="stats-row">
+        <div class="stat-card green"><div class="stat-top"><span class="sc-icon">✅</span><span class="sc-label">وظیفه انجام‌شده</span></div><div class="sc-val" id="s-tasks">0</div></div>
+        <div class="stat-card purple"><div class="stat-top"><span class="sc-icon">📖</span><span class="sc-label">دقیقه مطالعه</span></div><div class="sc-val" id="s-study">0</div></div>
+        <div class="stat-card blue"><div class="stat-top"><span class="sc-icon">🎯</span><span class="sc-label">نشست تمرکز</span></div><div class="sc-val" id="s-sess">0</div></div>
+        <div class="stat-card red"><div class="stat-top"><span class="sc-icon">⚡</span><span class="sc-label">حواس‌پرتی</span></div><div class="sc-val" id="s-distr">0</div></div>
+      </div>
+      <!-- Gamification Bar -->
+      <div class="gamif-bar" id="gamif-bar">
+        <div class="gf-level" id="gf-level"><span class="gf-badge">Lv.1</span><span id="gf-level-name">مبتدی</span></div>
+        <div class="gf-xp-wrap"><div class="gf-xp-track"><div class="gf-xp-fill" id="gf-xp-fill" style="width:0%"></div></div><span class="gf-xp-text" id="gf-xp-text">0 XP</span></div>
+        <div class="gf-streak"><span>🔥</span><span id="gf-streak">0</span><span class="gf-sl">روز متوالی</span></div>
+        <div class="gf-goal" id="gf-goal-wrap"><div class="gf-goal-track"><div class="gf-goal-fill" id="gf-goal-fill" style="width:0%"></div></div><span class="gf-goal-text" id="gf-goal-text">هدف هفتگی: 0/300 دقیقه</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr"><h2>وظایف در انتظار</h2><button class="btn ghost sm" id="dash-go-tasks">مشاهده همه ←</button></div>
+        <div id="dash-list"></div>
+        <div class="empty hidden" id="dash-empty"><div class="empty-icon">🌟</div><p>هنوز وظیفه‌ای ثبت نشده</p><button class="btn primary sm" id="dash-add-btn">افزودن وظیفه</button></div>
+      </div>
+    </section>
+
+    <!-- ══ Tasks ══ -->
+    <section class="sec hidden" id="sec-tasks">
+      <div class="sec-head"><h1>مدیریت وظایف</h1></div>
+      <div class="task-add-row">
+        <input id="task-inp" class="inp flex1" type="text" placeholder="وظیفه جدید… (Enter)">
+        <select id="task-prio" class="sel"><option value="high">🔴 مهم</option><option value="medium" selected>🟡 متوسط</option><option value="low">🟢 عادی</option></select>
+        <button class="btn primary" id="task-add-btn">+ افزودن</button>
+      </div>
+      <div class="filter-row">
+        <button class="fb active" data-f="all">همه</button>
+        <button class="fb" data-f="active">در انتظار</button>
+        <button class="fb" data-f="done">انجام‌شده</button>
+      </div>
+      <div id="task-list"></div>
+      <div class="empty hidden" id="task-empty"><div class="empty-icon">📋</div><p>وظیفه‌ای وجود ندارد</p></div>
+    </section>
+
+    <!-- ══ Focus ══ -->
+    <section class="sec hidden" id="sec-focus">
+      <div class="sec-head"><h1>نشست تمرکز</h1><p class="sub">تایمر رو شروع کن و فقط روی درست تمرکز کن</p></div>
+      <div class="focus-body">
+        <div class="timer-wrap">
+          <svg class="timer-svg" viewBox="0 0 220 220">
+            <circle class="t-track" cx="110" cy="110" r="96"/>
+            <circle class="t-prog" cx="110" cy="110" r="96" id="t-ring"/>
+          </svg>
+          <div class="timer-inner">
+            <div class="t-phase" id="t-phase">آماده</div>
+            <div class="t-time" id="t-time">25:00</div>
+            <div class="t-study" id="t-study"></div>
+            <div class="t-distr" id="t-distr"></div>
+          </div>
+        </div>
+        <div class="focus-settings" id="focus-cfg">
+          <div class="cfg-group"><label class="cfg-lbl">مدت تمرکز (دقیقه)</label>
+            <div class="dur-row"><button class="dur active" data-min="25">۲۵</button><button class="dur" data-min="50">۵۰</button><button class="dur" data-min="90">۹۰</button></div>
+          </div>
+          <div class="cfg-group"><label class="cfg-lbl">وظیفه مرتبط</label><select id="focus-task-sel" class="sel wide"></select></div>
+        </div>
+        <div class="focus-ctrls">
+          <button class="btn start" id="btn-start">▶ شروع</button>
+          <button class="btn pause hidden" id="btn-pause">⏸ مکث</button>
+          <button class="btn stop hidden" id="btn-stop">■ توقف</button>
+        </div>
+        <button class="btn distract hidden" id="btn-distr">⚡ حواسم پرت شد</button>
+      </div>
+    </section>
+
+    <!-- ══ Calendar ══ -->
+    <section class="sec hidden" id="sec-calendar">
+      <div class="sec-head"><h1>تقویم مطالعه</h1></div>
+      <div class="cal-tabs">
+        <button class="ct active" data-view="daily">📅 روزانه</button>
+        <button class="ct" data-view="weekly">🗓️ هفتگی</button>
+        <button class="ct" data-view="monthly">📆 ماهانه</button>
+      </div>
+      <div class="cal-view" id="view-daily"><div class="cal-nav"><button class="btn ghost sm" id="d-prev">←</button><span class="cal-nav-lbl" id="d-lbl"></span><button class="btn ghost sm" id="d-next">→</button></div><div id="daily-body"></div></div>
+      <div class="cal-view hidden" id="view-weekly"><div class="cal-nav"><button class="btn ghost sm" id="w-prev">←</button><span class="cal-nav-lbl" id="w-lbl"></span><button class="btn ghost sm" id="w-next">→</button></div><div id="weekly-body"></div></div>
+      <div class="cal-view hidden" id="view-monthly"><div class="cal-nav"><button class="btn ghost sm" id="m-prev">←</button><span class="cal-nav-lbl" id="m-lbl"></span><button class="btn ghost sm" id="m-next">→</button></div><div id="monthly-body"></div></div>
+    </section>
+
+    <!-- ══ Analytics ══ -->
+    <section class="sec hidden" id="sec-analytics">
+      <div class="sec-head"><h1>آنالیز عملکرد</h1></div>
+      <div class="an-range-row">
+        <button class="fb active" data-days="7">۷ روز</button>
+        <button class="fb" data-days="14">۱۴ روز</button>
+        <button class="fb" data-days="30">۳۰ روز</button>
+      </div>
+      <div class="panel mb20"><div class="panel-hdr"><h2>دقایق مطالعه</h2><span class="an-total-lbl" id="an-total-lbl"></span></div><div class="chart-wrap" id="chart-main"></div></div>
+      <div class="an-cards-row">
+        <div class="an-card"><div class="an-ico">🏆</div><div class="an-val" id="an-best">—</div><div class="an-lbl">بهترین روز (دقیقه)</div></div>
+        <div class="an-card"><div class="an-ico">📊</div><div class="an-val" id="an-avg">—</div><div class="an-lbl">میانگین روزانه</div></div>
+        <div class="an-card"><div class="an-ico">⏱️</div><div class="an-val" id="an-total">—</div><div class="an-lbl">مجموع دقایق</div></div>
+        <div class="an-card"><div class="an-ico">🎯</div><div class="an-val" id="an-sessions">—</div><div class="an-lbl">مجموع نشست</div></div>
+      </div>
+    </section>
+
+    <!-- ══ Notes ══ -->
+    <section class="sec hidden" id="sec-notes">
+      <div class="sec-head"><h1>یادداشت‌های سریع</h1></div>
+      <div class="notes-layout">
+        <div class="notes-panel">
+          <button class="btn primary wide mb12" id="new-note-btn">+ یادداشت جدید</button>
+          <div id="notes-list"></div>
+        </div>
+        <div class="notes-editor-panel" id="notes-editor-panel">
+          <div class="note-edit-empty" id="note-edit-empty"><div class="empty-icon">📝</div><p>یه یادداشت انتخاب کن یا جدید بساز</p></div>
+          <div class="note-editor hidden" id="note-editor">
+            <div class="note-editor-top">
+              <input class="inp note-title-inp" id="note-title-inp" placeholder="عنوان یادداشت…">
+              <div class="note-colors">
+                <button class="nc-btn active" data-color="yellow" style="background:#b45309"></button>
+                <button class="nc-btn" data-color="blue"   style="background:#1d4ed8"></button>
+                <button class="nc-btn" data-color="green"  style="background:#166534"></button>
+                <button class="nc-btn" data-color="purple" style="background:#6d28d9"></button>
+              </div>
+              <button class="btn ghost sm" id="note-delete-btn">🗑 حذف</button>
+            </div>
+            <textarea class="note-textarea" id="note-textarea" placeholder="متن یادداشتت رو اینجا بنویس…"></textarea>
+            <div class="note-save-row"><span class="note-saved-msg" id="note-saved-msg"></span><button class="btn primary sm" id="note-save-btn">💾 ذخیره</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ News ══ -->
+    <section class="sec hidden" id="sec-news">
+      <div class="sec-head"><h1>خوراک اخبار</h1><p class="sub">آدرس RSS سایت‌های مورد علاقه‌ات رو اضافه کن</p></div>
+      <div class="news-layout">
+        <div class="news-feeds-panel">
+          <div class="feed-add-box">
+            <input id="feed-name-inp" class="inp wide" placeholder="نام سایت (مثلاً: دیجیاتو)">
+            <input id="feed-url-inp"  class="inp wide mt6" placeholder="آدرس RSS (مثلاً: https://digikala.com/rss)">
+            <button class="btn primary wide mt6" id="add-feed-btn">+ افزودن خوراک</button>
+          </div>
+          <div id="feeds-list" class="feeds-list"></div>
+          <div class="rss-hint"><p>💡 برای پیدا کردن آدرس RSS یه سایت، معمولاً <code>/feed</code> یا <code>/rss</code> رو به آخر URL اضافه کن.</p></div>
+        </div>
+        <div class="news-articles-panel" id="news-articles">
+          <div class="news-empty-state"><div class="empty-icon">📰</div><p>یه خوراک از سمت راست انتخاب کن</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ AI Assistant ══ -->
+    <section class="sec hidden" id="sec-ai">
+      <div class="sec-head"><h1>دستیار هوش مصنوعی</h1><p class="sub">فاز بعدی توسعه — به‌زودی</p></div>
+      <div class="ai-coming-soon">
+        <div class="ai-cs-icon">🤖</div>
+        <h2>در حال توسعه…</h2>
+        <p>در نسخه بعدی MindDock، یک دستیار AI اضافه می‌شه که:</p>
+        <div class="ai-features-list">
+          <div class="ai-feat"><span>📊</span><span>با توجه به آمار مطالعه‌ات، برنامه روزانه پیشنهاد میده</span></div>
+          <div class="ai-feat"><span>🎬</span><span>فیلم، سریال، پادکست و کتاب متناسب با علایقت معرفی میکنه</span></div>
+          <div class="ai-feat"><span>⚠️</span><span>نواقص برنامه‌ریزیت رو شناسایی و اصلاح میکنه</span></div>
+          <div class="ai-feat"><span>💬</span><span>چت‌بات کامل برای راهنمایی و پشتیبانی</span></div>
+          <div class="ai-feat"><span>🔒</span><span>کاملاً آفلاین با مدل‌های محلی (Llama / Ollama)</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ Settings ══ -->
+    <section class="sec hidden" id="sec-settings">
+      <div class="sec-head"><h1>تنظیمات</h1></div>
+      <div class="settings-wrap">
+        <div class="settings-group">
+          <div class="sg-title">🎯 هدف هفتگی</div>
+          <div class="setting-row">
+            <div class="sr-info"><span class="sr-name">دقیقه مطالعه در هفته</span><span class="sr-desc">تعداد دقایقی که می‌خوای هر هفته مطالعه کنی (پیش‌فرض: ۳۰۰ دقیقه = ۵ ساعت)</span></div>
+            <div class="goal-inp-wrap"><input type="number" id="goal-inp" class="inp" style="width:100px" min="30" max="3000" value="300"><button class="btn primary sm" id="goal-save-btn">ذخیره</button></div>
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="sg-title">🔔 یادآوری‌ها</div>
+          <div class="setting-row">
+            <div class="sr-info"><span class="sr-name">یادآوری هر ساعت</span><span class="sr-desc">اپ هر ساعت بین ۸ صبح تا ۱۰ شب تسک‌های باقی‌مانده رو یادآوری می‌کنه</span></div>
+            <button class="btn ghost sm" id="test-notif-btn">🔔 تست نوتیف</button>
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="sg-title">📊 آمار</div>
+          <div class="setting-row" id="total-stats-row"><div class="sr-info"><span class="sr-name">در حال بارگذاری…</span></div></div>
+        </div>
+        <div class="settings-group">
+          <div class="sg-title">📁 مدیریت داده‌ها</div>
+          <div class="setting-row">
+            <div class="sr-info"><span class="sr-name">پاک کردن همه داده‌ها</span><span class="sr-desc">تمام وظایف، تقویم، نشست‌ها و یادداشت‌ها پاک می‌شوند. برگشت‌پذیر نیست!</span></div>
+            <button class="btn danger" id="clear-data-btn">🗑 پاک کردن</button>
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="sg-title">ℹ️ درباره</div>
+          <div class="setting-row"><div class="sr-info"><span class="sr-name">MindDock v2.0</span><span class="sr-desc">پلتفرم متن‌باز مدیریت بهره‌وری — Streak، Analytics، Notes، News، Smart Break</span></div></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Modal: Session Done + Smart Break -->
+<div class="overlay hidden" id="sess-modal">
+  <div class="modal">
+    <div class="m-emoji" id="sess-emoji">🎉</div>
+    <h2 id="sess-modal-h">نشست تموم شد!</h2>
+    <div class="m-stats" id="sess-modal-body"></div>
+    <div class="m-actions center" id="sess-modal-actions">
+      <button class="btn primary" id="sess-break-btn">⏸ شروع استراحت (۵ دقیقه)</button>
+      <button class="btn ghost" id="sess-modal-ok">رد کردن</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Day Report -->
+<div class="overlay hidden" id="day-modal">
+  <div class="modal wide-modal">
+    <div class="m-head"><h2 id="day-modal-title"></h2><button class="btn-x" id="day-modal-close">✕</button></div>
+    <div id="day-modal-body"></div>
+    <button class="btn primary mt wide" id="day-modal-add">+ افزودن تسک برای این روز</button>
+  </div>
+</div>
+
+<!-- Modal: Add Calendar Task -->
+<div class="overlay hidden" id="cal-modal">
+  <div class="modal">
+    <div class="m-head"><h2 id="cal-modal-title">افزودن تسک</h2><button class="btn-x" id="cal-modal-close">✕</button></div>
+    <div class="m-form">
+      <div class="field-wrap"><input id="cm-title" class="inp wide" type="text" placeholder="عنوان تسک مطالعه…"><span class="field-err hidden" id="cm-title-err">⚠️ عنوان اجباری است</span></div>
+      <select id="cm-task-ref" class="sel wide"><option value="">— از وظایف موجود انتخاب کن (اختیاری) —</option></select>
+      <select id="cm-prio" class="sel wide"><option value="high">🔴 مهم</option><option value="medium" selected>🟡 متوسط</option><option value="low">🟢 عادی</option></select>
+      <label class="notif-lbl"><input type="checkbox" id="cm-notify" checked><span>🔔 یادآوری روی سیستم</span></label>
+    </div>
+    <div class="m-actions"><button class="btn primary" id="cm-save">افزودن</button><button class="btn ghost" id="cm-cancel">انصراف</button></div>
+  </div>
+</div>
+
+<!-- Modal: Level Up -->
+<div class="overlay hidden" id="levelup-modal">
+  <div class="modal">
+    <div class="m-emoji">🎊</div>
+    <h2>لول آپ!</h2>
+    <p class="levelup-text" id="levelup-text"></p>
+    <button class="btn primary wide" id="levelup-ok">عالیه!</button>
+  </div>
+</div>
+
+<!-- Modal: Confirm Clear -->
+<div class="overlay hidden" id="confirm-modal">
+  <div class="modal">
+    <div class="m-emoji">⚠️</div>
+    <h2>مطمئنی؟</h2>
+    <p class="confirm-text">همه داده‌ها پاک می‌شوند.<br><strong>این عمل برگشت‌پذیر نیست!</strong></p>
+    <div class="m-actions center"><button class="btn danger" id="confirm-yes">بله، پاک کن</button><button class="btn ghost" id="confirm-no">انصراف</button></div>
+  </div>
+</div>
+
+<script src="jalali.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
