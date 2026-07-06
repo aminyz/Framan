@@ -141,15 +141,18 @@ ipcMain.handle('add-recurring-cal', (_, d) => storage.addRecurringCalTasks(d));
 
 // ── AI Assistant (OpenRouter) ─────────────────────────────────────────────────
 ipcMain.handle('ai-chat', async (_, { messages, apiKey, aiModel }) => {
-  if (!apiKey) return { ok: false, error: 'کلید API وارد نشده — از تنظیمات اضافه کن.' };
-  try {
-    const https = require('https');
-    const body  = JSON.stringify({
-      model: aiModel || 'meta-llama/llama-3.3-70b-instruct:free',
-      messages,
-      max_tokens: 600,
-    });
-    const result = await new Promise((resolve, reject) => {
+  if (!apiKey) return { ok: false, error: 'کلید API وارد نشده — از بخش AI وارد کن.' };
+
+  const FALLBACK_MODELS = [
+    aiModel || 'meta-llama/llama-3.3-70b-instruct:free',
+    'google/gemma-3-12b-it:free',
+    'mistralai/mistral-7b-instruct:free',
+  ];
+
+  async function tryModel(model) {
+    return new Promise((resolve, reject) => {
+      const https = require('https');
+      const body = JSON.stringify({ model, messages: messages.slice(-6), max_tokens: 600 });
       const req = https.request({
         hostname: 'openrouter.ai', path: '/api/v1/chat/completions',
         method: 'POST', timeout: 30000,
@@ -162,21 +165,38 @@ ipcMain.handle('ai-chat', async (_, { messages, apiKey, aiModel }) => {
       }, res => {
         let data = '';
         res.on('data', c => data += c);
-        res.on('end', () => {
-          try { resolve(JSON.parse(data)); }
-          catch { reject(new Error('parse error')); }
-        });
+        res.on('end', () => { try { resolve(JSON.parse(data)); } catch { reject(new Error('parse error')); } });
       });
       req.on('error', reject);
       req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
       req.write(body); req.end();
     });
-    if (result.error) return { ok: false, error: result.error.message || 'خطای API' };
-    const text = result.choices?.[0]?.message?.content || '';
-    return { ok: true, text };
-  } catch (e) {
-    return { ok: false, error: e.message };
   }
+
+  for (let i = 0; i < FALLBACK_MODELS.length; i++) {
+    const model = FALLBACK_MODELS[i];
+    try {
+      const result = await tryModel(model);
+      if (result.error) {
+        const msg = result.error.message || '';
+        if (i < FALLBACK_MODELS.length - 1 &&
+            (msg.includes('Provider returned error') || msg.includes('unavailable') || msg.includes('overloaded'))) {
+          continue; // مدل بعدی رو امتحان کن
+        }
+        const friendly = msg.includes('rate limit') || msg.includes('429')
+          ? '⏳ تعداد درخواست روزانه‌ات تموم شده. فردا دوباره امتحان کن یا ۱۰ دلار credit به OpenRouter اضافه کن.'
+          : msg.includes('Provider returned error')
+            ? '⚠️ سرور مدل شلوغه. یه مدل دیگه از لیست انتخاب کن.'
+            : `خطا: ${msg}`;
+        return { ok: false, error: friendly };
+      }
+      const text = result.choices?.[0]?.message?.content || '';
+      return { ok: true, text, usedModel: model };
+    } catch (e) {
+      if (i === FALLBACK_MODELS.length - 1) return { ok: false, error: `خطای شبکه: ${e.message}` };
+    }
+  }
+  return { ok: false, error: 'هیچ مدلی در دسترس نیست. بعداً امتحان کن.' };
 });
 
 // ── AI Settings ───────────────────────────────────────────────────────────────

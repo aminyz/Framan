@@ -54,6 +54,17 @@ function bindNav(){
   document.querySelectorAll('.ni').forEach(b=>b.addEventListener('click',()=>navTo(b.dataset.sec)));
   $('dash-go-tasks').addEventListener('click',()=>navTo('tasks'));
   $('dash-add-btn') .addEventListener('click',()=>navTo('tasks'));
+
+  // Sidebar toggle
+  const sidebar=document.querySelector('.sidebar');
+  const toggle=$('sidebar-toggle');
+  let collapsed=false;
+  toggle.addEventListener('click',()=>{
+    collapsed=!collapsed;
+    sidebar.classList.toggle('collapsed',collapsed);
+    toggle.textContent=collapsed?'›':'‹';
+    toggle.title=collapsed?'باز کردن منو':'جمع کردن منو';
+  });
 }
 function navTo(sec){
   curSection=sec;
@@ -105,38 +116,38 @@ async function refreshGamifBar(){
 
 // ── Jalali Date Picker ────────────────────────────────────────────────────────
 function bindJalaliPicker(){
-  const trigger=$('jp-trigger'),popup=$('jp-popup');
-  // پر کردن سال‌ها
+  const trigger=$('jp-trigger'),popup=$('jp-popup'),backdrop=$('jp-backdrop');
   const cy=Jalali.toJalaali(new Date()).jy;
   const ySel=$('jp-year');
   for(let y=cy-1;y<=cy+3;y++){const o=document.createElement('option');o.value=y;o.textContent=Jalali.toPersianDigits(y);if(y===cy)o.selected=true;ySel.appendChild(o);}
-  // پر کردن ماه‌ها
   const mSel=$('jp-month');
   Jalali.MONTHS.forEach((m,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=m;if(i+1===Jalali.toJalaali(new Date()).jm)o.selected=true;mSel.appendChild(o);});
-  // پر کردن روزها
   function fillDays(){
-    const jy=parseInt(ySel.value),jm=parseInt(mSel.value);
-    const len=Jalali.jalaaliMonthLength(jy,jm);
-    const prev=$('jp-day').value;
+    const jy=parseInt(ySel.value),jm=parseInt(mSel.value),len=Jalali.jalaaliMonthLength(jy,jm),prev=$('jp-day').value;
     $('jp-day').innerHTML='';
     for(let d=1;d<=len;d++){const o=document.createElement('option');o.value=d;o.textContent=Jalali.toPersianDigits(d);$('jp-day').appendChild(o);}
     const pv=parseInt(prev);if(pv&&pv<=len)$('jp-day').value=pv;
   }
   fillDays();
   ySel.addEventListener('change',fillDays);mSel.addEventListener('change',fillDays);
-  trigger.addEventListener('click',e=>{e.stopPropagation();popup.classList.toggle('hidden');});
-  document.addEventListener('click',e=>{if(!$('jp-wrap').contains(e.target))popup.classList.add('hidden');});
+
+  function openPicker(){popup.classList.remove('hidden');backdrop.classList.remove('hidden');}
+  function closePicker(){popup.classList.add('hidden');backdrop.classList.add('hidden');}
+
+  trigger.addEventListener('click',e=>{e.stopPropagation();popup.classList.contains('hidden')?openPicker():closePicker();});
+  backdrop.addEventListener('click',closePicker);
+
   $('jp-confirm').addEventListener('click',()=>{
     const jy=parseInt(ySel.value),jm=parseInt(mSel.value),jd=parseInt($('jp-day').value);
     const g=Jalali.toGregorian(jy,jm,jd);
     jpSelectedISO=Jalali.gregorianToISO(g.gy,g.gm,g.gd);
     trigger.textContent=`📅 ${Jalali.MONTHS[jm-1]} ${Jalali.toPersianDigits(jd)}`;
     trigger.classList.add('jp-has-val');
-    popup.classList.add('hidden');
+    closePicker();
   });
   $('jp-clear').addEventListener('click',()=>{
     jpSelectedISO='';trigger.textContent='📅 مهلت';
-    trigger.classList.remove('jp-has-val');popup.classList.add('hidden');
+    trigger.classList.remove('jp-has-val');closePicker();
   });
 }
 

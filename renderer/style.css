@@ -302,8 +302,9 @@ input[type="date"].inp{color-scheme:dark}
 .jp-trigger{background:var(--card2);border:1px solid var(--border2);border-radius:var(--r2);color:var(--txt2);cursor:pointer;font-family:inherit;font-size:13px;padding:10px 14px;transition:all var(--t);white-space:nowrap}
 .jp-trigger:hover{border-color:var(--acc);color:var(--txt)}
 .jp-trigger.jp-has-val{border-color:var(--ok);color:var(--ok)}
-.jp-popup{position:absolute;top:calc(100% + 6px);right:0;background:var(--card);border:1px solid var(--border2);border-radius:var(--r);padding:14px;z-index:200;box-shadow:var(--sh);min-width:260px}
-.jp-selects{display:flex;gap:6px;margin-bottom:10px}
+.jp-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);border:1px solid var(--border2);border-radius:var(--r);padding:18px;z-index:500;box-shadow:0 24px 64px rgba(0,0,0,.7);min-width:280px}
+.jp-popup-title{font-size:14px;font-weight:600;margin-bottom:12px;text-align:center;color:var(--txt)}
+.jp-selects{display:flex;gap:6px;margin-bottom:12px}
 .jp-sel{flex:1;background:var(--card2);border:1px solid var(--border2);border-radius:var(--r2);color:var(--txt);font-family:inherit;font-size:13px;padding:8px 6px;outline:none}
 .jp-actions{display:flex;gap:8px}
 
@@ -384,3 +385,18 @@ input[type="date"].inp{color-scheme:dark}
 .toggle-lbl input{cursor:pointer;accent-color:var(--acc);width:16px;height:16px}
 .toggle-txt{color:var(--txt2)}
 .ai-model-lbl{font-size:11px;color:var(--txt2);font-weight:700;margin-top:10px}
+.jp-backdrop{position:fixed;inset:0;z-index:499;background:rgba(0,0,0,.4)}
+
+/* ── Sidebar Collapsible ────────────────────────── */
+.sidebar{transition:width var(--t)}
+.sidebar.collapsed{width:54px;min-width:54px}
+.sidebar.collapsed .logo-txt{display:none}
+.sidebar.collapsed .ni span:last-child{display:none}
+.sidebar.collapsed .ni{justify-content:center;padding:10px}
+.sidebar.collapsed .ni-icon{font-size:18px}
+.sidebar.collapsed .sidebar-footer .sidebar-date{display:none}
+.sidebar.collapsed .sidebar-footer .streak-badge span:not(:first-child){display:none}
+.sidebar.collapsed .sidebar-footer{padding:10px 8px 0}
+.sidebar-toggle{background:none;border:none;cursor:pointer;color:var(--txt2);font-size:16px;padding:4px 8px;border-radius:var(--r3);transition:all var(--t);margin-right:auto;flex-shrink:0}
+.sidebar-toggle:hover{color:var(--txt);background:rgba(255,255,255,.07)}
+.sidebar.collapsed .sidebar-toggle{margin-right:0}

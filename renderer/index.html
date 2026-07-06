@@ -8,7 +8,7 @@
 <body>
 <div class="app">
   <aside class="sidebar">
-    <div class="logo"><span class="logo-icon">⚓</span><span class="logo-txt">MindDock</span></div>
+    <div class="logo"><span class="logo-icon">⚓</span><span class="logo-txt">MindDock</span><button class="sidebar-toggle" id="sidebar-toggle" title="جمع/باز کردن منو">‹</button></div>
     <nav class="nav">
       <button class="ni active" data-sec="dashboard"><span class="ni-icon">📊</span><span>داشبورد</span></button>
       <button class="ni" data-sec="tasks">          <span class="ni-icon">✅</span><span>وظایف</span></button>
@@ -60,6 +60,7 @@
         <div class="jp-wrap" id="jp-wrap">
           <button class="jp-trigger" id="jp-trigger" type="button">📅 مهلت</button>
           <div class="jp-popup hidden" id="jp-popup">
+            <div class="jp-popup-title">📅 انتخاب تاریخ شمسی</div>
             <div class="jp-selects">
               <select class="sel jp-sel" id="jp-year"></select>
               <select class="sel jp-sel" id="jp-month"></select>
@@ -70,6 +71,7 @@
               <button class="btn ghost sm" id="jp-clear">پاک</button>
             </div>
           </div>
+          <div class="jp-backdrop hidden" id="jp-backdrop"></div>
         </div>
         <button class="btn primary" id="task-add-btn">+ افزودن</button>
       </div>
