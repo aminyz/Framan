@@ -1,29 +1,49 @@
-# MindDock
+# Framan
 
-MindDock is an offline-first, modular desktop workspace for personal productivity.
+Framan is an offline-first, modular desktop workspace for personal productivity — built with Electron and Node.js.
 
-## Version 0.1
+*(Formerly known as MindDock)*
 
-This first desktop version includes:
+## Features
 
-- Modular app registry
-- Local JSON data storage
+- Modular app/plugin registry
+- Local JSON data storage — fully offline, no account needed
 - Task management
-- Daily, weekly, and monthly persian (jalali) calendar views
+- Daily, weekly, and monthly Persian (Jalali) calendar views
 - Desktop reminders for today's unfinished tasks
 - Focus timer
 - Habit tracker
 - Notes
-- Personal analytics
-- Basic workspace settings
+- Personal analytics dashboard
+- Built-in AI assistant
+- Gamification (streaks/achievements)
 
-## Run
+## Tech Stack
+
+- Electron / Node.js
+- Plugin-based architecture for extensibility
+
+## Getting Started
 
 ```powershell
 npm.cmd run setup
 npm.cmd start
 ```
 
-Data is saved locally in the Electron user data directory.
+Data is saved locally in the Electron user data directory — nothing leaves your machine.
 
-If an old root `node_modules/electron` folder is locked by Windows, it is safe to remove it after closing file scanners or restarting Windows. MindDock runs from `desktop-runtime`.
+> If an old root `node_modules/electron` folder is locked by Windows, it's safe to remove it after closing file scanners or restarting Windows.
+
+## Status
+
+**v1.0.0** — Windows installer available. Actively developed.
+
+## Roadmap
+
+- [ ] macOS / Linux builds
+- [ ] Plugin marketplace
+- [ ] More themes
+
+## License
+
+*(add your license here, e.g. MIT)*
