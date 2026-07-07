@@ -1,7 +1,7 @@
 {
-  "name": "minddock",
-  "version": "2.0.0",
-  "description": "MindDock — پلتفرم مدیریت بهره‌وری شخصی",
+  "name": "framan",
+  "version": "1.0.0",
+  "description": "Framan — پلتفرم مدیریت بهره‌وری شخصی",
   "main": "src/main.js",
   "author": "aminyz",
   "scripts": {
@@ -9,8 +9,8 @@
     "build:win": "electron-builder --win --x64"
   },
   "build": {
-    "appId": "com.minddock.app",
-    "productName": "MindDock",
+    "appId": "com.framan.app",
+    "productName": "Framan",
     "directories": {
       "output": "dist"
     },

@@ -13,7 +13,7 @@ function fetchURL(url, redirects=0) {
     if(redirects>5) return reject(new Error('too many redirects'));
     try {
       const client=url.startsWith('https')?https:http;
-      const req=client.get(url,{timeout:12000,headers:{'User-Agent':'MindDock RSS Reader 1.0'}},res=>{
+      const req=client.get(url,{timeout:12000,headers:{'User-Agent':'Framan RSS Reader 1.0'}},res=>{
         if(res.statusCode>=300&&res.statusCode<400&&res.headers.location)
           return fetchURL(res.headers.location,redirects+1).then(resolve).catch(reject);
         let data=''; res.setEncoding('utf8');
@@ -48,7 +48,7 @@ function sendReminder() {
   const tasks=storage.getCalByDate(today).filter(t=>!t.done);
   if(!tasks.length) return;
   const body=tasks.slice(0,6).map(t=>`• ${t.title}`).join('\n')+(tasks.length>6?`\nو ${tasks.length-6} مورد دیگر…`:'');
-  new Notification({title:`📚 یادآوری MindDock — ${tasks.length} تسک باقی‌مانده`,body}).show();
+  new Notification({title:`📚 یادآوری Framan — ${tasks.length} تسک باقی‌مانده`,body}).show();
 }
 function startHourly() {
   if(hourlyInterval) clearInterval(hourlyInterval);
@@ -61,7 +61,7 @@ function scheduleMidnight() {
 
 // ── Window ─────────────────────────────────────────────────────────────────────
 function createWindow() {
-  win=new BrowserWindow({width:1350,height:880,minWidth:960,minHeight:640,backgroundColor:'#0a0a0f',title:'MindDock',
+  win=new BrowserWindow({width:1350,height:880,minWidth:960,minHeight:640,backgroundColor:'#0a0a0f',title:'Framan',
     webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false}});
   win.loadFile(path.join(__dirname,'../renderer/index.html'));
   win.setMenuBarVisibility(false);
@@ -159,8 +159,8 @@ ipcMain.handle('ai-chat', async (_, { messages, apiKey, aiModel }) => {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://github.com/aminyz/MindDock',
-          'X-Title': 'MindDock Productivity Assistant',
+          'HTTP-Referer': 'https://github.com/aminyz/Framan',
+          'X-Title': 'Framan Productivity Assistant',
         },
       }, res => {
         let data = '';

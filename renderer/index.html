@@ -2,13 +2,13 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>MindDock</title>
+  <title>Framan</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="app">
   <aside class="sidebar">
-    <div class="logo"><span class="logo-icon">⚓</span><span class="logo-txt">MindDock</span><button class="sidebar-toggle" id="sidebar-toggle" title="جمع/باز کردن منو">‹</button></div>
+    <div class="logo"><span class="logo-icon">⚓</span><span class="logo-txt">Framan</span></div>
     <nav class="nav">
       <button class="ni active" data-sec="dashboard"><span class="ni-icon">📊</span><span>داشبورد</span></button>
       <button class="ni" data-sec="tasks">          <span class="ni-icon">✅</span><span>وظایف</span></button>
@@ -19,6 +19,8 @@
       <button class="ni" data-sec="news">           <span class="ni-icon">📰</span><span>اخبار</span></button>
       <button class="ni" data-sec="ai">             <span class="ni-icon">🤖</span><span>دستیار AI</span></button>
       <button class="ni" data-sec="settings">       <span class="ni-icon">⚙️</span><span>تنظیمات</span></button>
+      <div class="nav-divider"></div>
+      <button class="ni ni-toggle" id="sidebar-toggle"><span class="ni-icon" id="toggle-icon">◀</span><span id="toggle-label">جمع کردن</span></button>
     </nav>
     <div class="sidebar-footer">
       <div class="streak-badge"><span>🔥</span><span id="sb-streak-val">0</span><span>روز</span></div>
@@ -197,7 +199,7 @@
           <div class="ai-messages" id="ai-messages">
             <div class="ai-welcome">
               <div class="ai-welcome-icon">🤖</div>
-              <h3>دستیار بهره‌وری MindDock</h3>
+              <h3>دستیار بهره‌وری Framan</h3>
               <p>من فقط در موارد زیر کمک می‌کنم:</p>
               <ul>
                 <li>برنامه‌ریزی روزانه و هفتگی</li>
@@ -243,7 +245,7 @@
           <div class="sg-title">📁 مدیریت داده‌ها</div>
           <div class="setting-row"><div class="sr-info"><span class="sr-name">پاک کردن همه داده‌ها</span><span class="sr-desc">برگشت‌پذیر نیست!</span></div><button class="btn danger" id="clear-data-btn">🗑 پاک کردن</button></div>
         </div>
-        <div class="settings-group"><div class="sg-title">ℹ️ درباره</div><div class="setting-row"><div class="sr-info"><span class="sr-name">MindDock v2.1</span><span class="sr-desc">تقویم جلالی دقیق، دستیار AI، تسک تکرارشونده، Deadline جلالی</span></div></div></div>
+        <div class="settings-group"><div class="sg-title">ℹ️ درباره</div><div class="setting-row"><div class="sr-info"><span class="sr-name">Framan v2.1</span><span class="sr-desc">تقویم جلالی دقیق، دستیار AI، تسک تکرارشونده، Deadline جلالی</span></div></div></div>
       </div>
     </section>
 

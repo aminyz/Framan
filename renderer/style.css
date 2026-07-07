@@ -388,15 +388,17 @@ input[type="date"].inp{color-scheme:dark}
 .jp-backdrop{position:fixed;inset:0;z-index:499;background:rgba(0,0,0,.4)}
 
 /* ── Sidebar Collapsible ────────────────────────── */
-.sidebar{transition:width var(--t)}
-.sidebar.collapsed{width:54px;min-width:54px}
+.sidebar{transition:width .22s ease}
+.sidebar.collapsed{width:56px;min-width:56px}
 .sidebar.collapsed .logo-txt{display:none}
+.sidebar.collapsed .logo{justify-content:center;padding:16px 10px 14px}
 .sidebar.collapsed .ni span:last-child{display:none}
-.sidebar.collapsed .ni{justify-content:center;padding:10px}
+.sidebar.collapsed .ni{justify-content:center;padding:10px 0}
 .sidebar.collapsed .ni-icon{font-size:18px}
 .sidebar.collapsed .sidebar-footer .sidebar-date{display:none}
 .sidebar.collapsed .sidebar-footer .streak-badge span:not(:first-child){display:none}
-.sidebar.collapsed .sidebar-footer{padding:10px 8px 0}
-.sidebar-toggle{background:none;border:none;cursor:pointer;color:var(--txt2);font-size:16px;padding:4px 8px;border-radius:var(--r3);transition:all var(--t);margin-right:auto;flex-shrink:0}
-.sidebar-toggle:hover{color:var(--txt);background:rgba(255,255,255,.07)}
-.sidebar.collapsed .sidebar-toggle{margin-right:0}
+.sidebar.collapsed .sidebar-footer{padding:10px 8px 0;justify-content:center}
+.sidebar.collapsed .ni-toggle{justify-content:center}
+.nav-divider{height:1px;background:var(--border);margin:6px 10px}
+.ni-toggle{color:var(--txt3)!important;font-size:12px}
+.ni-toggle:hover{color:var(--acc2)!important;background:rgba(99,102,241,.08)!important}

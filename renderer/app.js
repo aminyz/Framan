@@ -43,6 +43,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
   allTasks=await window.api.getTasks();
   await refreshDashboard();await refreshGamifBar();
   renderTasks();populateFocusSel();
+  // مقداردهی اولیه lastKnownLevel — بدون این، اولین level-up کار نمی‌کنه
+  const _ig=await window.api.getGamif(); lastKnownLevel=_ig.level;
   aiApiKey=await window.api.loadApiKey()||'';
   aiModel=await window.api.loadAiModel()||'meta-llama/llama-3.3-70b-instruct:free';
   if(aiApiKey)$('ai-key-status').textContent='✓ کلید API بارگذاری شد';
@@ -51,19 +53,27 @@ document.addEventListener('DOMContentLoaded',async()=>{
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 function bindNav(){
-  document.querySelectorAll('.ni').forEach(b=>b.addEventListener('click',()=>navTo(b.dataset.sec)));
+  document.querySelectorAll('.ni[data-sec]').forEach(b=>b.addEventListener('click',()=>navTo(b.dataset.sec)));
   $('dash-go-tasks').addEventListener('click',()=>navTo('tasks'));
   $('dash-add-btn') .addEventListener('click',()=>navTo('tasks'));
 
-  // Sidebar toggle
+  // Sidebar toggle - همیشه مرئی به عنوان آخرین آیتم منو
   const sidebar=document.querySelector('.sidebar');
-  const toggle=$('sidebar-toggle');
+  const toggleBtn=$('sidebar-toggle');
+  const toggleIcon=$('toggle-icon');
+  const toggleLabel=$('toggle-label');
   let collapsed=false;
-  toggle.addEventListener('click',()=>{
+
+  function updateToggle(){
+    toggleIcon.textContent = collapsed ? '▶' : '◀';
+    toggleLabel.textContent = collapsed ? 'باز کردن' : 'جمع کردن';
+    toggleBtn.title = collapsed ? 'باز کردن منو' : 'جمع کردن منو';
+  }
+
+  toggleBtn.addEventListener('click',()=>{
     collapsed=!collapsed;
     sidebar.classList.toggle('collapsed',collapsed);
-    toggle.textContent=collapsed?'›':'‹';
-    toggle.title=collapsed?'باز کردن منو':'جمع کردن منو';
+    updateToggle();
   });
 }
 function navTo(sec){
@@ -433,7 +443,7 @@ async function selectFeed(id,url){activeFeedId=id;loadFeeds();await loadArticles
 async function loadArticles(id,url){$('news-articles').innerHTML='<div class="news-loading">⏳ در حال دریافت…</div>';const res=await window.api.fetchFeed({id,url});if(!res.ok){$('news-articles').innerHTML=`<div class="news-error">⚠️ ${esc(res.error||'خطا')}</div>`;return;}const wrap=$('news-articles');wrap.innerHTML='';if(!res.articles.length){wrap.innerHTML='<div class="news-empty-state"><p>مقاله‌ای یافت نشد</p></div>';return;}res.articles.forEach(a=>{const card=document.createElement('div');card.className='article-card';card.innerHTML=`<div class="article-title">${esc(a.title)}</div>${a.desc?`<div class="article-desc">${esc(a.desc)}</div>`:''}<div class="article-date">${esc(a.date||'')}</div>`;card.addEventListener('click',()=>{if(a.link)window.api.openURL(a.link);});wrap.appendChild(card);});}
 
 // ── AI Assistant ──────────────────────────────────────────────────────────────
-const AI_SYSTEM = `تو دستیار بهره‌وری MindDock هستی. فقط در موارد زیر کمک می‌کنی:
+const AI_SYSTEM = `تو دستیار بهره‌وری Framan هستی. فقط در موارد زیر کمک می‌کنی:
 - برنامه‌ریزی مطالعه و وظایف
 - تحلیل الگوی عملکرد کاربر
 - پیشنهاد برای کاهش حواس‌پرتی و افزایش تمرکز
