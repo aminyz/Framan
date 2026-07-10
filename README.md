@@ -37,13 +37,3 @@ Data is saved locally in the Electron user data directory — nothing leaves you
 ## Status
 
 **v1.0.0** — Windows installer available. Actively developed.
-
-## Roadmap
-
-- [ ] macOS / Linux builds
-- [ ] Plugin marketplace
-- [ ] More themes
-
-## License
-
-*(add your license here, e.g. MIT)*
