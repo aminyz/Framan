@@ -3,6 +3,12 @@ const { app, BrowserWindow, ipcMain, Notification, shell } = require('electron')
 const path    = require('path');
 const https   = require('https');
 const http    = require('http');
+const fs      = require('fs');
+
+// ── مهم: نگه‌داری مسیر داده‌ها ثابت ────────────────────────────────────────
+// این خط باعث میشه userData همیشه در AppData/Roaming/minddock باشه
+// بدون این، تغییر productName مسیر رو عوض می‌کنه و داده‌ها گم میشن
+app.setName('minddock');
 const storage = require('./storage');
 
 let win, hourlyInterval=null;
@@ -69,6 +75,24 @@ function createWindow() {
 
 app.whenReady().then(()=>{
   storage.init();
+
+  // ── مهاجرت داده از پوشه‌های قدیمی (MindDock / Framan) ──────────────────
+  const userData = app.getPath('userData'); // = AppData/Roaming/minddock
+  const dataFiles = ['tasks.json','cal-tasks.json','sessions.json','gamif.json','notes.json','goal.json','cleanup.json','news-feeds.json'];
+  const oldFolders = [
+    path.join(userData,'..','MindDock'),
+    path.join(userData,'..','Framan'),
+    path.join(userData,'..','framan'),
+  ];
+  for(const oldDir of oldFolders){
+    if(!fs.existsSync(oldDir)) continue;
+    dataFiles.forEach(f=>{
+      const src=path.join(oldDir,f), dst=path.join(userData,f);
+      if(fs.existsSync(src)&&!fs.existsSync(dst)){
+        try{ fs.copyFileSync(src,dst); }catch(e){ console.error('migrate:',e); }
+      }
+    });
+  }
   // اجرای cleanup خودکار هنگام شروع
   const cs=storage.getCleanupSettings();
   if(cs.autoCleanup) storage.cleanupOldData(cs.daysToKeep);

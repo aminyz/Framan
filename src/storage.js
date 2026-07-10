@@ -185,17 +185,47 @@ function getWeeklyReport(startISO, endISO) {
 const LEVELS=[{l:1,name:'مبتدی',min:0},{l:2,name:'در حال رشد',min:200},{l:3,name:'متمرکز',min:500},{l:4,name:'حرفه‌ای',min:1000},{l:5,name:'استاد',min:2000},{l:6,name:'افسانه',min:5000}];
 function getGamif() { return read('gamif.json',{xp:0,level:1,levelName:'مبتدی',currentStreak:0,longestStreak:0,lastStudyDate:null}); }
 function addXP(amount) {
-  const g=getGamif(); g.xp+=amount;
-  const today=localDateISO();
-  if(!g.lastStudyDate){g.currentStreak=1;g.lastStudyDate=today;}
-  else {
-    const diff=Math.floor((new Date(today+' 00:00')-new Date(g.lastStudyDate+' 00:00'))/(86400000));
-    if(diff===1){g.currentStreak++;if(g.currentStreak>g.longestStreak)g.longestStreak=g.currentStreak;g.lastStudyDate=today;}
-    else if(diff>1){g.currentStreak=1;g.lastStudyDate=today;}
+  const g = getGamif();
+  g.xp += amount;
+
+  const today = localDateISO();
+
+  if (!g.lastStudyDate) {
+    // اولین بار
+    g.currentStreak  = 1;
+    g.longestStreak  = 1;
+    g.lastStudyDate  = today;
+  } else if (g.lastStudyDate === today) {
+    // همون روز — فقط XP اضافه شد، streak دست نخوره
+    // longestStreak شاید باید آپدیت بشه اگه streak افزایش یافته
+  } else {
+    // روز جدید — محاسبه فاصله
+    const ms   = new Date(today + 'T00:00:00').getTime()
+                 - new Date(g.lastStudyDate + 'T00:00:00').getTime();
+    const diff = Math.round(ms / 86400000);
+
+    if (diff === 1) {
+      // روز پشت سر هم
+      g.currentStreak  += 1;
+      if (g.currentStreak > (g.longestStreak || 0)) g.longestStreak = g.currentStreak;
+    } else {
+      // یه روز یا بیشتر نخوندی — streak ریست
+      g.currentStreak = 1;
+    }
+    g.lastStudyDate = today;
   }
-  const lv=LEVELS.slice().reverse().find(l=>g.xp>=l.min)||LEVELS[0];
-  const leveled=lv.l>g.level; g.level=lv.l; g.levelName=lv.name;
-  wr('gamif.json',g); return {gamif:g,leveled,newLevel:lv};
+
+  // لول‌بندی
+  const LEVEL_TABLE = [{l:1,name:'مبتدی',min:0},{l:2,name:'در حال رشد',min:200},
+    {l:3,name:'متمرکز',min:500},{l:4,name:'حرفه‌ای',min:1000},
+    {l:5,name:'استاد',min:2000},{l:6,name:'افسانه',min:5000}];
+  const newLv = [...LEVEL_TABLE].reverse().find(l => g.xp >= l.min) || LEVEL_TABLE[0];
+  const leveled = newLv.l > g.level;
+  g.level     = newLv.l;
+  g.levelName = newLv.name;
+
+  wr('gamif.json', g);
+  return { gamif: g, leveled, newLevel: newLv };
 }
 
 // ── Notes ─────────────────────────────────────────────────────────────────────

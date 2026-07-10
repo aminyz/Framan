@@ -111,17 +111,42 @@ async function refreshDashboard(){
   });
 }
 async function refreshGamifBar(){
-  const g=await window.api.getGamif(),goal=await window.api.getGoal(),wm=await window.api.getWeeklyMin();
-  $('gf-level').querySelector('.gf-badge').textContent=`Lv.${g.level}`;
-  $('gf-level-name').textContent=g.levelName;
-  $('gf-streak').textContent=g.currentStreak;$('sb-streak-val').textContent=g.currentStreak;
-  const LV=[0,200,500,1000,2000,5000,99999];
-  const cm=LV[g.level-1]??0,nm=LV[g.level]??(cm+1000);
-  $('gf-xp-fill').style.width=Math.min(100,Math.round(((g.xp-cm)/(nm-cm))*100))+'%';
-  $('gf-xp-text').textContent=`${g.xp} XP`;
-  const gp=Math.min(100,Math.round((wm/goal.weeklyMinutes)*100));
-  $('gf-goal-fill').style.width=gp+'%';
-  $('gf-goal-text').textContent=`هدف هفتگی: ${wm}/${goal.weeklyMinutes} دقیقه`;
+  try {
+    const g    = await window.api.getGamif();
+    const goal = await window.api.getGoal();
+    const wm   = await window.api.getWeeklyMin();
+
+    // Level badge
+    const badge = document.querySelector('#gf-level .gf-badge');
+    if(badge) badge.textContent = `Lv.${g.level}`;
+    const ln = $('gf-level-name');
+    if(ln) ln.textContent = g.levelName;
+
+    // Streak
+    const strk = $('gf-streak');
+    if(strk) strk.textContent = g.currentStreak;
+    const sb = $('sb-streak-val');
+    if(sb)   sb.textContent   = g.currentStreak;
+
+    // XP bar — بین لول فعلی و بعدی
+    const LV = [0, 200, 500, 1000, 2000, 5000, 99999];
+    const cm  = LV[Math.min(g.level-1, LV.length-1)] ?? 0;
+    const nm  = LV[Math.min(g.level,   LV.length-1)] ?? (cm+1000);
+    const xpPct = nm > cm ? Math.min(100, Math.round(((g.xp-cm)/(nm-cm))*100)) : 100;
+    const xpFill = $('gf-xp-fill');
+    if(xpFill) xpFill.style.width = xpPct + '%';
+    const xpTxt = $('gf-xp-text');
+    if(xpTxt)  xpTxt.textContent  = `${g.xp} XP`;
+
+    // Goal bar
+    const gp   = goal.weeklyMinutes > 0 ? Math.min(100, Math.round((wm/goal.weeklyMinutes)*100)) : 0;
+    const gFill = $('gf-goal-fill');
+    if(gFill) gFill.style.width = gp + '%';
+    const gTxt = $('gf-goal-text');
+    if(gTxt)  gTxt.textContent  = `هدف هفتگی: ${wm}/${goal.weeklyMinutes} دقیقه`;
+  } catch(e){
+    console.error('[refreshGamifBar]', e);
+  }
 }
 
 // ── Jalali Date Picker ────────────────────────────────────────────────────────
