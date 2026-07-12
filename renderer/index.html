@@ -98,6 +98,7 @@
         <div class="focus-settings" id="focus-cfg">
           <div class="cfg-group"><label class="cfg-lbl">مدت تمرکز (دقیقه)</label><div class="dur-row"><button class="dur active" data-min="25">۲۵</button><button class="dur" data-min="50">۵۰</button><button class="dur" data-min="90">۹۰</button></div></div>
           <div class="cfg-group"><label class="cfg-lbl">وظیفه مرتبط</label><select id="focus-task-sel" class="sel wide"></select></div>
+          <button class="btn ghost sm" id="custom-timer-btn" style="margin-top:4px">⚙️ تایمر دلخواه</button>
         </div>
         <div class="focus-ctrls"><button class="btn start" id="btn-start">▶ شروع</button><button class="btn pause hidden" id="btn-pause">⏸ مکث</button><button class="btn stop hidden" id="btn-stop">■ توقف</button></div>
         <button class="btn distract hidden" id="btn-distr">⚡ حواسم پرت شد</button>
@@ -255,6 +256,56 @@
 <!-- Modal: Session Done -->
 <div class="overlay hidden" id="sess-modal"><div class="modal"><div class="m-emoji" id="sess-emoji">🎉</div><h2 id="sess-modal-h">نشست تموم شد!</h2><div class="m-stats" id="sess-modal-body"></div><div class="m-actions center" id="sess-modal-actions"><button class="btn primary" id="sess-break-btn">⏸ استراحت ۵ دقیقه</button><button class="btn ghost" id="sess-modal-ok">رد کردن</button></div></div></div>
 
+<!-- Modal: Sub-task -->
+<div class="overlay hidden" id="subtask-modal">
+  <div class="modal">
+    <div class="m-head"><h2 id="subtask-modal-title">افزودن زیروظیفه</h2><button class="btn-x" id="subtask-modal-close">✕</button></div>
+    <div class="m-form">
+      <div class="field-wrap">
+        <input id="st-title" class="inp wide" type="text" placeholder="عنوان زیروظیفه… (مثلاً: فصل تابع)">
+        <span class="field-err hidden" id="st-title-err">⚠️ عنوان اجباری است</span>
+      </div>
+      <div class="st-time-row">
+        <div class="st-field">
+          <label class="cfg-lbl">زمان مورد نیاز (ساعت)</label>
+          <input id="st-hours" class="inp" type="number" min="0.5" max="100" step="0.5" value="2" style="width:100px">
+        </div>
+        <div class="st-field">
+          <label class="cfg-lbl">تعداد پارت‌ها</label>
+          <input id="st-parts" class="inp" type="number" min="1" max="20" value="1" style="width:80px">
+        </div>
+        <div class="st-field">
+          <label class="cfg-lbl">هر پارت</label>
+          <span class="st-per-part" id="st-per-part">— دقیقه</span>
+        </div>
+      </div>
+    </div>
+    <div class="m-actions"><button class="btn primary" id="st-save">افزودن</button><button class="btn ghost" id="st-cancel">انصراف</button></div>
+  </div>
+</div>
+
+<!-- Modal: Custom Timer -->
+<div class="overlay hidden" id="custom-timer-modal">
+  <div class="modal">
+    <div class="m-head"><h2>تنظیم تایمر دلخواه</h2><button class="btn-x" id="ct-close">✕</button></div>
+    <div class="m-form">
+      <div class="cfg-group">
+        <label class="cfg-lbl">مدت تمرکز (دقیقه)</label>
+        <input id="ct-minutes" class="inp" type="number" min="1" max="180" value="25" style="width:100px">
+      </div>
+      <div class="cfg-group">
+        <label class="cfg-lbl">مدت استراحت (دقیقه)</label>
+        <input id="ct-break" class="inp" type="number" min="1" max="30" value="5" style="width:100px">
+      </div>
+      <div class="cfg-group">
+        <label class="cfg-lbl">تعداد نشست قبل از استراحت بلند</label>
+        <input id="ct-sessions" class="inp" type="number" min="1" max="10" value="4" style="width:100px">
+      </div>
+    </div>
+    <div class="m-actions"><button class="btn primary" id="ct-apply">اعمال</button><button class="btn ghost" id="ct-cancel">انصراف</button></div>
+  </div>
+</div>
+
 <!-- Modal: Day Report -->
 <div class="overlay hidden" id="day-modal"><div class="modal wide-modal"><div class="m-head"><h2 id="day-modal-title"></h2><button class="btn-x" id="day-modal-close">✕</button></div><div id="day-modal-body"></div><button class="btn primary mt wide" id="day-modal-add">+ افزودن تسک برای این روز</button></div></div>
 
@@ -300,6 +351,18 @@
 <div class="overlay hidden" id="levelup-modal"><div class="modal"><div class="m-emoji">🎊</div><h2>لول آپ!</h2><p class="levelup-text" id="levelup-text"></p><button class="btn primary wide" id="levelup-ok">عالیه!</button></div></div>
 
 <!-- Modal: Confirm Clear -->
+<!-- Modal: Edit Task -->
+<div class="overlay hidden" id="edit-task-modal">
+  <div class="modal">
+    <div class="m-head"><h2>ویرایش وظیفه</h2><button class="btn-x" id="edit-task-close">✕</button></div>
+    <div class="m-form">
+      <input id="edit-task-title" class="inp wide" type="text" placeholder="عنوان وظیفه…">
+      <select id="edit-task-prio" class="sel wide"><option value="high">🔴 مهم</option><option value="medium">🟡 متوسط</option><option value="low">🟢 عادی</option></select>
+    </div>
+    <div class="m-actions"><button class="btn primary" id="edit-task-save">ذخیره</button><button class="btn ghost" id="edit-task-cancel">انصراف</button></div>
+  </div>
+</div>
+
 <div class="overlay hidden" id="confirm-modal"><div class="modal"><div class="m-emoji">⚠️</div><h2>مطمئنی؟</h2><p class="confirm-text">همه داده‌ها پاک می‌شوند.<br><strong>برگشت‌پذیر نیست!</strong></p><div class="m-actions center"><button class="btn danger" id="confirm-yes">بله، پاک کن</button><button class="btn ghost" id="confirm-no">انصراف</button></div></div></div>
 
 <script src="jalali.js"></script>

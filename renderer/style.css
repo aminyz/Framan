@@ -402,3 +402,28 @@ input[type="date"].inp{color-scheme:dark}
 .nav-divider{height:1px;background:var(--border);margin:6px 10px}
 .ni-toggle{color:var(--txt3)!important;font-size:12px}
 .ni-toggle:hover{color:var(--acc2)!important;background:rgba(99,102,241,.08)!important}
+
+/* ── Sub-tasks ────────────────────────────────── */
+.task-item{flex-wrap:wrap}
+.task-item-top{display:flex;align-items:center;gap:12px;width:100%;padding:2px 0}
+.subtask-section{width:100%;padding:8px 0 4px 0;border-top:1px solid var(--border);margin-top:6px}
+.subtask-list{display:flex;flex-direction:column;gap:4px;margin-bottom:6px}
+.st-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border-radius:var(--r3);border:1px solid var(--border);font-size:13px}
+.st-item.done .st-title{text-decoration:line-through;opacity:.55}
+.st-chk{width:16px;height:16px;border-radius:50%;border:2px solid var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;transition:all var(--t)}.st-chk:hover{border-color:var(--ok)}.st-item.done .st-chk{background:var(--ok);border-color:var(--ok);color:#fff}
+.st-title{flex:1;color:var(--txt)}
+.st-time{font-size:11px;color:var(--acc2);white-space:nowrap}
+.st-del{background:none;border:none;color:var(--txt3);cursor:pointer;font-size:13px;padding:2px 4px;transition:all var(--t)}.st-del:hover{color:var(--red)}
+.st-schedule{background:none;border:1px solid var(--border);border-radius:4px;color:var(--txt3);cursor:pointer;font-size:11px;padding:2px 6px;transition:all var(--t)}.st-schedule:hover{border-color:var(--acc);color:var(--acc2)}
+.btn-add-st{background:none;border:1px dashed var(--border2);border-radius:var(--r3);color:var(--txt3);cursor:pointer;font-size:12px;padding:4px 10px;transition:all var(--t);width:100%}.btn-add-st:hover{border-color:var(--acc);color:var(--acc2)}
+.st-progress{height:3px;background:var(--border2);border-radius:2px;margin-bottom:6px;overflow:hidden}
+.st-progress-fill{height:100%;background:linear-gradient(90deg,#6366f1,#22c55e);border-radius:2px;transition:width .4s}
+
+/* Sub-task modal */
+.st-time-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.st-field{display:flex;flex-direction:column;gap:6px}
+.st-per-part{font-size:14px;font-weight:700;color:var(--acc2);padding:10px 0}
+
+/* Custom Timer */
+.ct-presets{display:flex;gap:6px;margin-bottom:10px}
+.ct-preset{background:var(--card2);border:1px solid var(--border2);border-radius:var(--r2);color:var(--txt2);cursor:pointer;font-size:12px;padding:6px 10px;transition:all var(--t)}.ct-preset:hover{border-color:var(--acc);color:var(--txt)}

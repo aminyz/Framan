@@ -1,14 +1,9 @@
 'use strict';
-const CIRC = 2 * Math.PI * 96;
-const PERIODS = [
-  {id:'morning',  name:'صبح',        icon:'🌅'},
-  {id:'afternoon',name:'ظهر',        icon:'☀️'},
-  {id:'evening',  name:'شب',         icon:'🌙'},
-  {id:'anytime',  name:'انعطاف‌پذیر',icon:'📋'},
-];
-const NOTE_COLORS = {yellow:'#92400e',blue:'#1e3a8a',green:'#14532d',purple:'#4c1d95'};
+const CIRC=2*Math.PI*96;
+const PERIODS=[{id:'morning',name:'صبح',icon:'🌅'},{id:'afternoon',name:'ظهر',icon:'☀️'},{id:'evening',name:'شب',icon:'🌙'},{id:'anytime',name:'انعطاف‌پذیر',icon:'📋'}];
+const NOTE_COLORS={yellow:'#92400e',blue:'#1e3a8a',green:'#14532d',purple:'#4c1d95'};
 
-// ── Timezone-safe date helpers ────────────────────────────────────────────────
+// ── Timezone-safe ─────────────────────────────────────────────────────────────
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;}
 function dateStrLocal(d){return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;}
 function isoToLocal(iso){return new Date(iso+'T12:00:00');}
@@ -27,8 +22,13 @@ let anDays=7,anTab='chart';
 let activeNoteId=null,allNotes=[];
 let activeFeedId=null,breakMode=false;
 let wrWeekStart=weekStartOf(new Date());
-let jpSelectedISO=''; // تاریخ انتخاب‌شده در Jalali picker
+let jpSelectedISO='';
 let aiMessages=[],aiApiKey='',aiModel='meta-llama/llama-3.3-70b-instruct:free',lastKnownLevel=null;
+// Sub-task & Edit
+let activeSubtaskTaskId=null;
+let editTaskId=null;
+// Custom timer
+let customBreakMin=5, customSessionCount=4, sessionsDone=0;
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
 const tmr={status:'idle',totalSec:25*60,taskId:null,distractions:0,iid:null,sessStart:0,totalPausedMs:0,pauseStart:0};
@@ -43,8 +43,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   allTasks=await window.api.getTasks();
   await refreshDashboard();await refreshGamifBar();
   renderTasks();populateFocusSel();
-  // مقداردهی اولیه lastKnownLevel — بدون این، اولین level-up کار نمی‌کنه
-  const _ig=await window.api.getGamif(); lastKnownLevel=_ig.level;
+  const _ig=await window.api.getGamif();lastKnownLevel=_ig.level;
   aiApiKey=await window.api.loadApiKey()||'';
   aiModel=await window.api.loadAiModel()||'meta-llama/llama-3.3-70b-instruct:free';
   if(aiApiKey)$('ai-key-status').textContent='✓ کلید API بارگذاری شد';
@@ -56,29 +55,19 @@ function bindNav(){
   document.querySelectorAll('.ni[data-sec]').forEach(b=>b.addEventListener('click',()=>navTo(b.dataset.sec)));
   $('dash-go-tasks').addEventListener('click',()=>navTo('tasks'));
   $('dash-add-btn') .addEventListener('click',()=>navTo('tasks'));
-
-  // Sidebar toggle - همیشه مرئی به عنوان آخرین آیتم منو
-  const sidebar=document.querySelector('.sidebar');
-  const toggleBtn=$('sidebar-toggle');
-  const toggleIcon=$('toggle-icon');
-  const toggleLabel=$('toggle-label');
+  const sidebar=document.querySelector('.sidebar'),toggleBtn=$('sidebar-toggle'),toggleIcon=$('toggle-icon'),toggleLabel=$('toggle-label');
   let collapsed=false;
-
-  function updateToggle(){
-    toggleIcon.textContent = collapsed ? '▶' : '◀';
-    toggleLabel.textContent = collapsed ? 'باز کردن' : 'جمع کردن';
-    toggleBtn.title = collapsed ? 'باز کردن منو' : 'جمع کردن منو';
+  if(toggleBtn){
+    toggleBtn.addEventListener('click',()=>{
+      collapsed=!collapsed;sidebar.classList.toggle('collapsed',collapsed);
+      if(toggleIcon)toggleIcon.textContent=collapsed?'▶':'◀';
+      if(toggleLabel)toggleLabel.textContent=collapsed?'باز کردن':'جمع کردن';
+    });
   }
-
-  toggleBtn.addEventListener('click',()=>{
-    collapsed=!collapsed;
-    sidebar.classList.toggle('collapsed',collapsed);
-    updateToggle();
-  });
 }
 function navTo(sec){
   curSection=sec;
-  document.querySelectorAll('.ni').forEach(b=>b.classList.toggle('active',b.dataset.sec===sec));
+  document.querySelectorAll('.ni[data-sec]').forEach(b=>b.classList.toggle('active',b.dataset.sec===sec));
   document.querySelectorAll('.sec').forEach(s=>{s.classList.remove('active');s.classList.add('hidden');});
   const el=$('sec-'+sec);el.classList.remove('hidden');el.classList.add('active');
   if(sec==='dashboard'){refreshDashboard();refreshGamifBar();}
@@ -90,8 +79,6 @@ function navTo(sec){
   if(sec==='news')     loadFeeds();
   if(sec==='settings') loadSettings();
 }
-
-// ── Greeting ──────────────────────────────────────────────────────────────────
 function setGreeting(){const h=new Date().getHours();$('greeting').textContent=(h<12?'صبح بخیر':h<17?'ظهر بخیر':'شب بخیر')+' — بهترین لحظه برای شروع همین الانه 💪';}
 function setSidebarDate(){$('sidebar-date').textContent=Jalali.formatJalali(new Date(),'full');}
 
@@ -111,47 +98,27 @@ async function refreshDashboard(){
   });
 }
 async function refreshGamifBar(){
-  try {
-    const g    = await window.api.getGamif();
-    const goal = await window.api.getGoal();
-    const wm   = await window.api.getWeeklyMin();
-
-    // Level badge
-    const badge = document.querySelector('#gf-level .gf-badge');
-    if(badge) badge.textContent = `Lv.${g.level}`;
-    const ln = $('gf-level-name');
-    if(ln) ln.textContent = g.levelName;
-
-    // Streak
-    const strk = $('gf-streak');
-    if(strk) strk.textContent = g.currentStreak;
-    const sb = $('sb-streak-val');
-    if(sb)   sb.textContent   = g.currentStreak;
-
-    // XP bar — بین لول فعلی و بعدی
-    const LV = [0, 200, 500, 1000, 2000, 5000, 99999];
-    const cm  = LV[Math.min(g.level-1, LV.length-1)] ?? 0;
-    const nm  = LV[Math.min(g.level,   LV.length-1)] ?? (cm+1000);
-    const xpPct = nm > cm ? Math.min(100, Math.round(((g.xp-cm)/(nm-cm))*100)) : 100;
-    const xpFill = $('gf-xp-fill');
-    if(xpFill) xpFill.style.width = xpPct + '%';
-    const xpTxt = $('gf-xp-text');
-    if(xpTxt)  xpTxt.textContent  = `${g.xp} XP`;
-
-    // Goal bar
-    const gp   = goal.weeklyMinutes > 0 ? Math.min(100, Math.round((wm/goal.weeklyMinutes)*100)) : 0;
-    const gFill = $('gf-goal-fill');
-    if(gFill) gFill.style.width = gp + '%';
-    const gTxt = $('gf-goal-text');
-    if(gTxt)  gTxt.textContent  = `هدف هفتگی: ${wm}/${goal.weeklyMinutes} دقیقه`;
-  } catch(e){
-    console.error('[refreshGamifBar]', e);
-  }
+  try{
+    const g=await window.api.getGamif(),goal=await window.api.getGoal(),wm=await window.api.getWeeklyMin();
+    const badge=document.querySelector('#gf-level .gf-badge');if(badge)badge.textContent=`Lv.${g.level}`;
+    const ln=$('gf-level-name');if(ln)ln.textContent=g.levelName;
+    const strk=$('gf-streak');if(strk)strk.textContent=g.currentStreak;
+    const sb=$('sb-streak-val');if(sb)sb.textContent=g.currentStreak;
+    const LV=[0,200,500,1000,2000,5000,99999];
+    const cm=LV[Math.min(g.level-1,LV.length-1)]??0,nm=LV[Math.min(g.level,LV.length-1)]??(cm+1000);
+    const xpPct=nm>cm?Math.min(100,Math.round(((g.xp-cm)/(nm-cm))*100)):100;
+    const xpFill=$('gf-xp-fill');if(xpFill)xpFill.style.width=xpPct+'%';
+    const xpTxt=$('gf-xp-text');if(xpTxt)xpTxt.textContent=`${g.xp} XP`;
+    const gp=goal.weeklyMinutes>0?Math.min(100,Math.round((wm/goal.weeklyMinutes)*100)):0;
+    const gFill=$('gf-goal-fill');if(gFill)gFill.style.width=gp+'%';
+    const gTxt=$('gf-goal-text');if(gTxt)gTxt.textContent=`هدف هفتگی: ${wm}/${goal.weeklyMinutes} دقیقه`;
+  }catch(e){console.error('[refreshGamifBar]',e);}
 }
 
-// ── Jalali Date Picker ────────────────────────────────────────────────────────
+// ── Jalali Picker ─────────────────────────────────────────────────────────────
 function bindJalaliPicker(){
   const trigger=$('jp-trigger'),popup=$('jp-popup'),backdrop=$('jp-backdrop');
+  if(!trigger||!popup)return;
   const cy=Jalali.toJalaali(new Date()).jy;
   const ySel=$('jp-year');
   for(let y=cy-1;y<=cy+3;y++){const o=document.createElement('option');o.value=y;o.textContent=Jalali.toPersianDigits(y);if(y===cy)o.selected=true;ySel.appendChild(o);}
@@ -163,27 +130,17 @@ function bindJalaliPicker(){
     for(let d=1;d<=len;d++){const o=document.createElement('option');o.value=d;o.textContent=Jalali.toPersianDigits(d);$('jp-day').appendChild(o);}
     const pv=parseInt(prev);if(pv&&pv<=len)$('jp-day').value=pv;
   }
-  fillDays();
-  ySel.addEventListener('change',fillDays);mSel.addEventListener('change',fillDays);
-
-  function openPicker(){popup.classList.remove('hidden');backdrop.classList.remove('hidden');}
-  function closePicker(){popup.classList.add('hidden');backdrop.classList.add('hidden');}
-
-  trigger.addEventListener('click',e=>{e.stopPropagation();popup.classList.contains('hidden')?openPicker():closePicker();});
-  backdrop.addEventListener('click',closePicker);
-
+  fillDays();ySel.addEventListener('change',fillDays);mSel.addEventListener('change',fillDays);
+  function openP(){popup.classList.remove('hidden');if(backdrop)backdrop.classList.remove('hidden');}
+  function closeP(){popup.classList.add('hidden');if(backdrop)backdrop.classList.add('hidden');}
+  trigger.addEventListener('click',e=>{e.stopPropagation();popup.classList.contains('hidden')?openP():closeP();});
+  if(backdrop)backdrop.addEventListener('click',closeP);
   $('jp-confirm').addEventListener('click',()=>{
     const jy=parseInt(ySel.value),jm=parseInt(mSel.value),jd=parseInt($('jp-day').value);
-    const g=Jalali.toGregorian(jy,jm,jd);
-    jpSelectedISO=Jalali.gregorianToISO(g.gy,g.gm,g.gd);
-    trigger.textContent=`📅 ${Jalali.MONTHS[jm-1]} ${Jalali.toPersianDigits(jd)}`;
-    trigger.classList.add('jp-has-val');
-    closePicker();
+    const g=Jalali.toGregorian(jy,jm,jd);jpSelectedISO=Jalali.gregorianToISO(g.gy,g.gm,g.gd);
+    trigger.textContent=`📅 ${Jalali.MONTHS[jm-1]} ${Jalali.toPersianDigits(jd)}`;trigger.classList.add('jp-has-val');closeP();
   });
-  $('jp-clear').addEventListener('click',()=>{
-    jpSelectedISO='';trigger.textContent='📅 مهلت';
-    trigger.classList.remove('jp-has-val');closePicker();
-  });
+  $('jp-clear').addEventListener('click',()=>{jpSelectedISO='';trigger.textContent='📅 مهلت';trigger.classList.remove('jp-has-val');closeP();});
 }
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────
@@ -192,14 +149,11 @@ function bindTasks(){
   const doAdd=async()=>{
     const title=inp.value.trim();if(!title){inp.focus();return;}
     const t=await window.api.addTask({title,priority:$('task-prio').value,deadline:jpSelectedISO||null});
-    allTasks.push(t);inp.value='';
-    // ریست picker
-    jpSelectedISO='';$('jp-trigger').textContent='📅 مهلت';$('jp-trigger').classList.remove('jp-has-val');
-    inp.focus();renderTasks();populateFocusSel();
-    if(curSection==='dashboard')refreshDashboard();
+    allTasks.push(t);inp.value='';jpSelectedISO='';
+    const tr=$('jp-trigger');if(tr){tr.textContent='📅 مهلت';tr.classList.remove('jp-has-val');}
+    inp.focus();renderTasks();populateFocusSel();if(curSection==='dashboard')refreshDashboard();
   };
-  btn.addEventListener('click',doAdd);
-  inp.addEventListener('keydown',e=>{if(e.key==='Enter')doAdd();});
+  btn.addEventListener('click',doAdd);inp.addEventListener('keydown',e=>{if(e.key==='Enter')doAdd();});
   document.querySelectorAll('.fb[data-f]').forEach(b=>b.addEventListener('click',()=>{
     document.querySelectorAll('.fb[data-f]').forEach(x=>x.classList.remove('active'));
     b.classList.add('active');taskFilter=b.dataset.f;renderTasks();
@@ -207,13 +161,10 @@ function bindTasks(){
 }
 function renderTasks(){
   const list=$('task-list'),empty=$('task-empty');
-  const today=todayISO();
-  const pw={high:0,medium:1,low:2};
+  const today=todayISO();const pw={high:0,medium:1,low:2};
   let items=allTasks.filter(t=>{
-    if(taskFilter==='active')return !t.done;
-    if(taskFilter==='done')  return t.done;
-    if(taskFilter==='late')  return !t.done&&t.deadline&&t.deadline<today;
-    return true;
+    if(taskFilter==='active')return !t.done;if(taskFilter==='done')return t.done;
+    if(taskFilter==='late')return !t.done&&t.deadline&&t.deadline<today;return true;
   }).sort((a,b)=>{
     if(a.done!==b.done)return a.done?1:-1;
     if(a.deadline&&!b.deadline)return -1;if(!a.deadline&&b.deadline)return 1;
@@ -222,54 +173,153 @@ function renderTasks(){
   });
   list.innerHTML='';
   if(!items.length){empty.classList.remove('hidden');return;}
-  empty.classList.add('hidden');
-  items.forEach(t=>list.appendChild(buildTaskEl(t)));
+  empty.classList.add('hidden');items.forEach(t=>list.appendChild(buildTaskEl(t)));
 }
 function buildTaskEl(task){
   const el=document.createElement('div');el.className=`task-item${task.done?' done':''}`;
+  const subs=task.subtasks||[];
+  const doneCount=subs.filter(s=>s.done).length;
+  const pct=subs.length?Math.round((doneCount/subs.length)*100):0;
   const dlH=task.deadline?`<span class="deadline-badge ${dlcls(task.deadline)}">${dlLabel(task.deadline)}</span>`:'';
-  el.innerHTML=`<div class="ti-chk">${task.done?'✓':''}</div><span class="ti-title">${esc(task.title)}</span>${dlH}<span class="pb ${pcls(task.priority)}">${plbl(task.priority)}</span><button class="ti-del">🗑</button>`;
+  const subInfo=subs.length?`<span style="font-size:11px;color:var(--txt3)">${doneCount}/${subs.length} زیروظیفه</span>`:'';
+
+  el.innerHTML=`
+    <div class="task-item-top">
+      <div class="ti-chk">${task.done?'✓':''}</div>
+      <span class="ti-title">${esc(task.title)}</span>
+      ${dlH}
+      ${subInfo}
+      <span class="pb ${pcls(task.priority)}">${plbl(task.priority)}</span>
+      <button class="ti-edit" title="ویرایش">✏️</button>
+      <button class="ti-del" title="حذف">🗑</button>
+    </div>
+    ${subs.length?`<div class="st-progress"><div class="st-progress-fill" style="width:${pct}%"></div></div>`:''}
+    <div class="subtask-section" id="sts-${task.id}">
+      <div class="subtask-list" id="stl-${task.id}"></div>
+      <button class="btn-add-st" data-tid="${task.id}">+ افزودن زیروظیفه</button>
+    </div>`;
+
+  // Render subtasks
+  const stList=el.querySelector(`#stl-${task.id}`);
+  subs.forEach(st=>stList.appendChild(buildSubtaskEl(task.id,st)));
+
   el.querySelector('.ti-chk').addEventListener('click',async()=>{
-    const wasUndone=!task.done;
-    const u=await window.api.toggleTask(task.id);
+    const wasUndone=!task.done;const u=await window.api.toggleTask(task.id);
     const i=allTasks.findIndex(x=>x.id===task.id);if(i>=0&&u)allTasks[i]=u;
     if(wasUndone&&u&&u.done){await window.api.taskXP();refreshGamifBar();checkLevelUp();}
     renderTasks();if(curSection==='dashboard'){refreshDashboard();refreshGamifBar();}
   });
+  el.querySelector('.ti-edit').addEventListener('click',()=>openEditTask(task));
   el.querySelector('.ti-del').addEventListener('click',async()=>{
     await window.api.deleteTask(task.id);allTasks=allTasks.filter(x=>x.id!==task.id);
     renderTasks();populateFocusSel();
   });
+  el.querySelector('.btn-add-st').addEventListener('click',()=>openSubtaskModal(task.id));
   return el;
 }
+function buildSubtaskEl(taskId,st){
+  const el=document.createElement('div');el.className=`st-item${st.done?' done':''}`;
+  const timeInfo=st.parts>1?`${st.parts} پارت × ${st.minutesPerPart}د`:`${Math.round(st.estimatedHours*60)}د`;
+  el.innerHTML=`<div class="st-chk">${st.done?'✓':''}</div><span class="st-title">${esc(st.title)}</span><span class="st-time">⏱ ${st.estimatedHours}س (${timeInfo})</span><button class="st-schedule" title="اضافه به تقویم">📅</button><button class="st-del">🗑</button>`;
+  el.querySelector('.st-chk').addEventListener('click',async()=>{
+    const u=await window.api.toggleSubtask(taskId,st.id);
+    if(u){const i=allTasks.findIndex(x=>x.id===taskId);if(i>=0)allTasks[i]=u;}
+    renderTasks();if(curSection==='dashboard')refreshDashboard();
+  });
+  el.querySelector('.st-del').addEventListener('click',async()=>{
+    const u=await window.api.deleteSubtask(taskId,st.id);
+    if(u){const i=allTasks.findIndex(x=>x.id===taskId);if(i>=0)allTasks[i]=u;}
+    renderTasks();
+  });
+  el.querySelector('.st-schedule').addEventListener('click',()=>{
+    // باز کردن modal تقویم با اطلاعات sub-task
+    calModalCtx={date:todayISO(),period:'anytime'};calModalCb=()=>renderCurrentView();
+    $('cm-title').value=st.title;$('cal-modal-title').textContent=`زمان‌بندی: ${st.title}`;
+    $('cm-prio').value='medium';$('cm-notify').checked=true;$('cm-title-err').classList.add('hidden');
+    $('cal-modal').classList.remove('hidden');setTimeout(()=>$('cm-title').focus(),80);
+  });
+  return el;
+}
+
+// ── Edit Task Modal ───────────────────────────────────────────────────────────
+function openEditTask(task){
+  editTaskId=task.id;
+  $('edit-task-title').value=task.title;
+  $('edit-task-prio').value=task.priority;
+  $('edit-task-modal').classList.remove('hidden');
+  setTimeout(()=>$('edit-task-title').focus(),80);
+}
+
+// ── Subtask Modal ─────────────────────────────────────────────────────────────
+function openSubtaskModal(taskId){
+  activeSubtaskTaskId=taskId;
+  const task=allTasks.find(t=>t.id===taskId);
+  $('subtask-modal-title').textContent=`زیروظیفه برای: ${task?.title||''}`;
+  $('st-title').value='';$('st-hours').value=2;$('st-parts').value=1;
+  updatePerPart();$('st-title-err').classList.add('hidden');
+  $('subtask-modal').classList.remove('hidden');setTimeout(()=>$('st-title').focus(),80);
+}
+function updatePerPart(){
+  const h=parseFloat($('st-hours').value)||1,p=parseInt($('st-parts').value)||1;
+  const min=Math.round((h*60)/p);
+  $('st-per-part').textContent=`${min} دقیقه`;
+}
+
+// ── Task helpers ──────────────────────────────────────────────────────────────
 function dlcls(dl){if(!dl)return '';const diff=Math.ceil((new Date(dl+' 00:00')-new Date(todayISO()+' 00:00'))/86400000);return diff<0?'dl-late':diff<=3?'dl-near':'dl-ok';}
 function dlLabel(dl){if(!dl)return '';const diff=Math.ceil((new Date(dl+' 00:00')-new Date(todayISO()+' 00:00'))/86400000);if(diff<0)return `⏰ ${Math.abs(diff)}روز تأخیر`;if(diff===0)return '⚠️ امروز';if(diff===1)return '⚡ فردا';return `📅 ${Jalali.formatJalali(isoToLocal(dl),'short')}`;}
 async function checkLevelUp(){const g=await window.api.getGamif();if(lastKnownLevel!==null&&g.level>lastKnownLevel){$('levelup-text').innerHTML=`تبریک! به سطح <strong>Lv.${g.level} — ${g.levelName}</strong> رسیدی 🎉`;$('levelup-modal').classList.remove('hidden');}lastKnownLevel=g.level;}
 
 // ── Focus Timer ───────────────────────────────────────────────────────────────
 function bindFocus(){
-  document.querySelectorAll('.dur').forEach(b=>b.addEventListener('click',()=>{if(tmr.status!=='idle')return;document.querySelectorAll('.dur').forEach(x=>x.classList.remove('active'));b.classList.add('active');tmr.totalSec=parseInt(b.dataset.min)*60;renderFace(tmr.totalSec);}));
-  $('btn-start').addEventListener('click',tmrStart);$('btn-pause').addEventListener('click',tmrPause);$('btn-stop').addEventListener('click',tmrStop);
+  document.querySelectorAll('.dur').forEach(b=>b.addEventListener('click',()=>{
+    if(tmr.status!=='idle')return;
+    document.querySelectorAll('.dur').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');tmr.totalSec=parseInt(b.dataset.min)*60;renderFace(tmr.totalSec);
+  }));
+  $('btn-start').addEventListener('click',tmrStart);
+  $('btn-pause').addEventListener('click',tmrPause);
+  $('btn-stop') .addEventListener('click',tmrStop);
   $('btn-distr').addEventListener('click',()=>{if(tmr.status!=='running')return;tmr.distractions++;$('t-distr').textContent=`⚡ ${tmr.distractions} حواس‌پرتی`;});
+  const ctBtn=$('custom-timer-btn');if(ctBtn)ctBtn.addEventListener('click',()=>{if(tmr.status!=='idle')return;$('custom-timer-modal').classList.remove('hidden');});
 }
-function populateFocusSel(){const sel=$('focus-task-sel'),prev=sel.value;sel.innerHTML='<option value="">— بدون وظیفه —</option>';allTasks.filter(t=>!t.done).forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.title.length>42?t.title.slice(0,42)+'…':t.title;sel.appendChild(o);});if(prev)sel.value=prev;}
+function populateFocusSel(){
+  const sel=$('focus-task-sel'),prev=sel.value;sel.innerHTML='<option value="">— بدون وظیفه —</option>';
+  allTasks.filter(t=>!t.done).forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.title.length>42?t.title.slice(0,42)+'…':t.title;sel.appendChild(o);});
+  if(prev)sel.value=prev;
+}
 function tmrStart(){
   if(tmr.status==='running')return;
-  if(tmr.status==='idle'){if(!breakMode){tmr.totalSec=parseInt(document.querySelector('.dur.active')?.dataset.min||25)*60;tmr.taskId=$('focus-task-sel').value||null;}tmr.distractions=0;tmr.sessStart=Date.now();tmr.totalPausedMs=0;tmr.pauseStart=0;}
+  if(tmr.status==='idle'){
+    if(!breakMode){tmr.totalSec=parseInt(document.querySelector('.dur.active')?.dataset.min||25)*60;tmr.taskId=$('focus-task-sel').value||null;}
+    tmr.distractions=0;tmr.sessStart=Date.now();tmr.totalPausedMs=0;tmr.pauseStart=0;
+  }
   if(tmr.status==='paused'&&tmr.pauseStart){tmr.totalPausedMs+=Date.now()-tmr.pauseStart;tmr.pauseStart=0;}
   tmr.status='running';updateTimerUI();
-  tmr.iid=setInterval(()=>{const rem=tmrRemaining();renderFace(rem);if(!breakMode){const ss=Math.floor(tmrStudyMs()/1000);$('t-study').textContent=`📖 مطالعه: ${fmt(Math.floor(ss/60))}:${fmt(ss%60)}`;}if(rem<=0){clearInterval(tmr.iid);breakMode?finishBreak():finishSession(true);}},500);
+  tmr.iid=setInterval(()=>{
+    const rem=tmrRemaining();renderFace(rem);
+    if(!breakMode){const ss=Math.floor(tmrStudyMs()/1000);$('t-study').textContent=`📖 مطالعه: ${fmt(Math.floor(ss/60))}:${fmt(ss%60)}`;}
+    if(rem<=0){clearInterval(tmr.iid);breakMode?finishBreak():finishSession(true);}
+  },500);
 }
 function tmrPause(){if(tmr.status!=='running')return;clearInterval(tmr.iid);tmr.pauseStart=Date.now();tmr.status='paused';updateTimerUI();}
 function tmrStop(){if(tmr.status==='idle')return;clearInterval(tmr.iid);if(breakMode){breakMode=false;resetTimerVisual();}else finishSession(false);}
 async function finishSession(completed){
   const ss=Math.floor(tmrStudyMs()/1000),ws=Math.floor((Date.now()-tmr.sessStart)/1000);
   if(ss>=5){await window.api.addSession({taskId:tmr.taskId,durationSeconds:ws,studySeconds:ss,distractions:tmr.distractions,completed});await checkLevelUp();}
-  if(completed){window.api.notify({title:'✅ نشست تمرکز تموم شد!',body:`مطالعه: ${Math.floor(ss/60)} دقیقه | حواس‌پرتی: ${tmr.distractions} بار`});$('sess-emoji').textContent='🎉';$('sess-modal-h').textContent='نشست تموم شد!';$('sess-modal-body').innerHTML=`<p>⏱ کل جلسه: <strong>${minsec(ws)}</strong></p><p>📖 زمان واقعی: <strong>${minsec(ss)}</strong></p><p>⚡ حواس‌پرتی: <strong>${tmr.distractions} بار</strong></p>`;$('sess-break-btn').classList.remove('hidden');$('sess-modal').classList.remove('hidden');}
-  Object.assign(tmr,{status:'idle',distractions:0,taskId:null,sessStart:0,totalPausedMs:0,pauseStart:0});resetTimerVisual();if(curSection==='dashboard'){refreshDashboard();refreshGamifBar();}
+  if(completed){
+    sessionsDone++;
+    window.api.notify({title:'✅ نشست تمرکز تموم شد! — Framan',body:`مطالعه: ${Math.floor(ss/60)} دقیقه | حواس‌پرتی: ${tmr.distractions} بار`});
+    $('sess-emoji').textContent='🎉';$('sess-modal-h').textContent='نشست تموم شد!';
+    $('sess-modal-body').innerHTML=`<p>⏱ کل جلسه: <strong>${minsec(ws)}</strong></p><p>📖 زمان واقعی: <strong>${minsec(ss)}</strong></p><p>⚡ حواس‌پرتی: <strong>${tmr.distractions} بار</strong></p>${sessionsDone%customSessionCount===0?'<p style="color:var(--warn)">🎯 وقت استراحت بلند!</p>':''}`;
+    $('sess-break-btn').textContent=sessionsDone%customSessionCount===0?`⏸ استراحت بلند (${customBreakMin*3}د)`:`⏸ استراحت (${customBreakMin}د)`;
+    $('sess-break-btn').classList.remove('hidden');$('sess-modal').classList.remove('hidden');
+  }
+  Object.assign(tmr,{status:'idle',distractions:0,taskId:null,sessStart:0,totalPausedMs:0,pauseStart:0});
+  resetTimerVisual();if(curSection==='dashboard'){refreshDashboard();refreshGamifBar();}
 }
 function startBreak(m){breakMode=true;tmr.totalSec=m*60;tmr.distractions=0;tmr.sessStart=Date.now();tmr.totalPausedMs=0;tmr.pauseStart=0;tmr.status='running';$('t-ring').classList.add('break-mode');$('focus-cfg').classList.add('hidden');updateTimerUI();renderFace(tmr.totalSec);tmr.iid=setInterval(()=>{const rem=tmrRemaining();renderFace(rem);if(rem<=0){clearInterval(tmr.iid);finishBreak();}},500);}
-function finishBreak(){window.api.notify({title:'⏰ وقت استراحت تموم شد!',body:'آماده‌ای؟'});breakMode=false;Object.assign(tmr,{status:'idle',distractions:0,taskId:null,sessStart:0,totalPausedMs:0,pauseStart:0});resetTimerVisual();}
+function finishBreak(){window.api.notify({title:'⏰ وقت استراحت تموم شد! — Framan',body:'آماده‌ای؟'});breakMode=false;Object.assign(tmr,{status:'idle',distractions:0,taskId:null,sessStart:0,totalPausedMs:0,pauseStart:0});resetTimerVisual();}
 function resetTimerVisual(){tmr.totalSec=parseInt(document.querySelector('.dur.active')?.dataset.min||25)*60;$('t-ring').classList.remove('break-mode');renderFace(tmr.totalSec);updateTimerUI();$('t-distr').textContent='';$('t-study').textContent='';}
 function renderFace(rem){$('t-time').textContent=`${fmt(Math.floor(rem/60))}:${fmt(rem%60)}`;const ring=$('t-ring');ring.style.strokeDashoffset=CIRC*(1-rem/tmr.totalSec);if(!breakMode)ring.style.stroke=(rem<=300&&tmr.status!=='idle')?'#ef4444':'';}
 function updateTimerUI(){const s=tmr.status;tog('btn-start',!(s==='idle'||s==='paused'));tog('btn-pause',s!=='running');tog('btn-stop',!(s==='running'||s==='paused'));tog('btn-distr',s!=='running'||breakMode);tog('focus-cfg',s!=='idle'||breakMode);$('btn-start').textContent=s==='paused'?'▶ ادامه':(breakMode?'▶ شروع استراحت':'▶ شروع');$('t-phase').textContent=breakMode?(s==='running'?'☕ استراحت':'آماده استراحت'):(s==='running'?'🔥 در حال تمرکز':s==='paused'?'⏸ مکث':'آماده');}
@@ -287,7 +337,6 @@ function bindCalendar(){
 async function initCalendar(){switchView(cal.view);}
 function switchView(view){cal.view=view;document.querySelectorAll('.ct').forEach(b=>b.classList.toggle('active',b.dataset.view===view));['daily','weekly','monthly'].forEach(v=>{const e=$('view-'+v);v===view?e.classList.remove('hidden'):e.classList.add('hidden');});renderCurrentView();}
 function renderCurrentView(){if(cal.view==='daily')renderDaily();if(cal.view==='weekly')renderWeekly();if(cal.view==='monthly')renderMonthly();}
-
 async function renderDaily(){
   const date=cal.dailyDate;$('d-lbl').textContent=Jalali.formatJalali(isoToLocal(date),'full');
   const tasks=await window.api.getCalDate(date);const body=$('daily-body');body.innerHTML='';
@@ -310,8 +359,7 @@ async function renderWeekly(){
   const body=$('weekly-body');body.innerHTML='';const today=todayISO();
   const grid=document.createElement('div');grid.className='week-grid';
   for(let i=0;i<7;i++){
-    const d=addDaysD(ws,i),ds=dateStrLocal(d),isT=ds===today;
-    const wd=Jalali.jWeekday(d);
+    const d=addDaysD(ws,i),ds=dateStrLocal(d),isT=ds===today,wd=Jalali.jWeekday(d);
     const col=document.createElement('div');col.className=`wday-col${isT?' today':''}`;
     col.innerHTML=`<div class="wday-hdr"><span class="wd-name">${Jalali.WEEKDAYS_FULL[wd]}</span><span class="wd-date">${Jalali.formatJalali(d,'short')}</span></div><div class="wday-tasks" id="wt-${ds}"></div>`;
     const wt=col.querySelector(`#wt-${ds}`);
@@ -325,13 +373,10 @@ async function renderWeekly(){
 async function renderMonthly(){
   const [jy,jm]=cal.monthYM.split('-').map(Number);
   $('m-lbl').textContent=`${Jalali.MONTHS[jm-1]} ${Jalali.toPersianDigits(jy)}`;
-  const monthLen=Jalali.jalaaliMonthLength(jy,jm);
-  const dayDates=[];
+  const monthLen=Jalali.jalaaliMonthLength(jy,jm),dayDates=[];
   for(let d=1;d<=monthLen;d++){const g=Jalali.toGregorian(jy,jm,d);dayDates.push(Jalali.gregorianToISO(g.gy,g.gm,g.gd));}
-  const firstG=Jalali.toGregorian(jy,jm,1);
-  const offset=Jalali.jWeekday(new Date(firstG.gy,firstG.gm-1,firstG.gd));
-  const stats=await window.api.getDateRangeStats(dayDates);
-  const sm={};stats.forEach(s=>sm[s.date]=s);
+  const firstG=Jalali.toGregorian(jy,jm,1),offset=Jalali.jWeekday(new Date(firstG.gy,firstG.gm-1,firstG.gd));
+  const stats=await window.api.getDateRangeStats(dayDates);const sm={};stats.forEach(s=>sm[s.date]=s);
   const body=$('monthly-body');body.innerHTML='';const today=todayISO();
   const hdr=document.createElement('div');hdr.className='month-dow-row';
   Jalali.WEEKDAYS_SHORT.forEach(d=>{const e=document.createElement('div');e.className='month-dow';e.textContent=d;hdr.appendChild(e);});
@@ -340,8 +385,7 @@ async function renderMonthly(){
   for(let i=0;i<offset;i++){const e=document.createElement('div');e.className='mc empty';grid.appendChild(e);}
   dayDates.forEach((date,idx)=>{
     const{studyMinutes:sm2=0,tasksTotal=0,tasksDone=0}=sm[date]||{};
-    const cell=document.createElement('div');
-    const isT=date===today,isPast=date<today;
+    const cell=document.createElement('div');const isT=date===today,isPast=date<today;
     let cls='mc';if(isT)cls+=' today';
     if(tasksTotal>0){if(tasksDone===tasksTotal)cls+=' all-done';else if(tasksDone>0)cls+=' partial';else if(isPast)cls+=' missed';}
     cell.className=cls;cell.dataset.date=date;
@@ -361,51 +405,31 @@ async function openDayReport(date){
   else{html+='<div class="report-tasks">';r.calTasks.forEach(t=>{const pN=PERIODS.find(p=>p.id===t.period)?.name||'';html+=`<div class="rt-item${t.done?' done':''}"><span class="rt-icon">${t.done?'✅':'⏰'}</span>${t.subject?`<span class="rt-sub">${esc(t.subject)}</span>`:''}<span class="rt-title">${esc(t.title)}</span><span class="rt-prd">${pN}</span></div>`;});html+='</div>';}
   $('day-modal-body').innerHTML=html;$('day-modal').classList.remove('hidden');
 }
-
-// ── Cal Modal (با تسک تکرارشونده) ────────────────────────────────────────────
 function openCalModal(date,period,cb){
   calModalCtx={date,period};calModalCb=cb||null;
   const p=PERIODS.find(x=>x.id===period);
   $('cal-modal-title').textContent=`افزودن تسک — ${Jalali.formatJalali(isoToLocal(date),'short')} / ${p?.name||''}`;
   const sel=$('cm-task-ref');sel.innerHTML='<option value="">— از وظایف موجود (اختیاری) —</option>';
   allTasks.filter(t=>!t.done).forEach(t=>{const o=document.createElement('option');o.value=t.title;o.textContent=t.title.length>48?t.title.slice(0,48)+'…':t.title;sel.appendChild(o);});
-  $('cm-title').value='';$('cm-prio').value='medium';$('cm-notify').checked=true;
-  $('cm-recurring').checked=false;$('recurring-opts').classList.add('hidden');
-  $('cm-title-err').classList.add('hidden');$('cal-modal').classList.remove('hidden');
-  setTimeout(()=>$('cm-title').focus(),80);
+  $('cm-prio').value='medium';$('cm-notify').checked=true;$('cm-recurring').checked=false;$('recurring-opts').classList.add('hidden');$('cm-title-err').classList.add('hidden');
+  $('cal-modal').classList.remove('hidden');setTimeout(()=>$('cm-title').focus(),80);
 }
 async function saveCalTask(){
-  const taskRef=$('cm-task-ref').value;
-  if(taskRef&&!$('cm-title').value.trim())$('cm-title').value=taskRef;
-  const title=$('cm-title').value.trim();
-  if(!title){$('cm-title-err').classList.remove('hidden');$('cm-title').focus();return;}
+  const taskRef=$('cm-task-ref').value;if(taskRef&&!$('cm-title').value.trim())$('cm-title').value=taskRef;
+  const title=$('cm-title').value.trim();if(!title){$('cm-title-err').classList.remove('hidden');$('cm-title').focus();return;}
   $('cm-title-err').classList.add('hidden');
   const base={title,period:calModalCtx.period,priority:$('cm-prio').value,subject:taskRef||'',notifyEnabled:$('cm-notify').checked};
-
   if($('cm-recurring').checked){
-    // تسک تکرارشونده
     const days=parseInt($('cm-repeat-range').value)||7;
-    const checkedDays=Array.from(document.querySelectorAll('.rd-days input:checked')).map(x=>parseInt(x.value));
-    const dates=[];
-    for(let i=0;i<days;i++){
-      const d=addDaysD(new Date(calModalCtx.date+'T12:00:00'),i);
-      const wd=Jalali.jWeekday(d);
-      if(checkedDays.includes(wd))dates.push(dateStrLocal(d));
-    }
-    if(dates.length){
-      const r=await window.api.addRecurringCal({...base,dates});
-      window.api.notify({title:'✅ تسک تکرارشونده اضافه شد',body:`${r.count} روز اضافه شد`});
-    }
-  } else {
-    await window.api.addCalTask({...base,date:calModalCtx.date});
-  }
-  await window.api.reschedNotifs();
-  $('cal-modal').classList.add('hidden');
-  if(calModalCb)calModalCb();if(curSection==='dashboard')refreshDashboard();
+    const cd=Array.from(document.querySelectorAll('.rd-days input:checked')).map(x=>parseInt(x.value));
+    const dates=[];for(let i=0;i<days;i++){const d=addDaysD(new Date(calModalCtx.date+'T12:00:00'),i);if(cd.includes(Jalali.jWeekday(d)))dates.push(dateStrLocal(d));}
+    if(dates.length){const r=await window.api.addRecurringCal({...base,dates});window.api.notify({title:'✅ تسک تکرارشونده',body:`${r.count} روز اضافه شد`});}
+  } else {await window.api.addCalTask({...base,date:calModalCtx.date});}
+  await window.api.reschedNotifs();$('cal-modal').classList.add('hidden');if(calModalCb)calModalCb();if(curSection==='dashboard')refreshDashboard();
 }
 function buildCalItem(task,onRefresh){
   const el=document.createElement('div');el.className=`ct-item${task.done?' done':''}`;
-  el.innerHTML=`<div class="ct-chk">${task.done?'✓':''}</div>${task.subject?`<span class="ct-sub">${esc(task.subject)}</span>`:''}<span class="ct-title">${esc(task.title)}</span>${task.recurring?'<span class="ct-rec" title="تکرارشونده">🔁</span>':''}<button class="ct-del">🗑</button>`;
+  el.innerHTML=`<div class="ct-chk">${task.done?'✓':''}</div>${task.subject?`<span class="ct-sub">${esc(task.subject)}</span>`:''}<span class="ct-title">${esc(task.title)}</span>${task.recurring?'<span class="ct-rec">🔁</span>':''}<button class="ct-del">🗑</button>`;
   el.querySelector('.ct-chk').addEventListener('click',async()=>{await window.api.toggleCal(task.id);task.done=!task.done;el.classList.toggle('done',task.done);el.querySelector('.ct-chk').textContent=task.done?'✓':'';if(curSection==='dashboard')refreshDashboard();});
   el.querySelector('.ct-del').addEventListener('click',async()=>{await window.api.deleteCal(task.id);el.remove();if(onRefresh)onRefresh();});
   return el;
@@ -420,31 +444,25 @@ function bindAnalytics(){
 }
 async function renderAnalytics(){
   const data=await window.api.getAnalytics(anDays);
-  const total=data.reduce((a,d)=>a+d.studyMinutes,0);
-  const best=Math.max(0,...data.map(d=>d.studyMinutes));
-  $('an-total-lbl').textContent=`مجموع: ${total} دقیقه`;
-  $('an-best').textContent=best;$('an-avg').textContent=Math.round(total/data.length)||0;
-  $('an-total').textContent=total;$('an-sessions').textContent=data.reduce((a,d)=>a+d.sessions,0);
-  const wrap=$('chart-main');wrap.innerHTML='';
-  const max=Math.max(1,...data.map(d=>d.studyMinutes));
+  const total=data.reduce((a,d)=>a+d.studyMinutes,0),best=Math.max(0,...data.map(d=>d.studyMinutes));
+  $('an-total-lbl').textContent=`مجموع: ${total} دقیقه`;$('an-best').textContent=best;$('an-avg').textContent=Math.round(total/data.length)||0;$('an-total').textContent=total;$('an-sessions').textContent=data.reduce((a,d)=>a+d.sessions,0);
+  const wrap=$('chart-main');wrap.innerHTML='';const max=Math.max(1,...data.map(d=>d.studyMinutes));
   const w=800,h=180,padB=28,padT=10,gap=8,bw=(w-gap*(data.length-1))/data.length;
   let svg=`<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#818cf8"/><stop offset="100%" stop-color="#4f46e5"/></linearGradient></defs>`;
   data.forEach((d,i)=>{const bh=d.studyMinutes>0?Math.max(3,((h-padB-padT)*d.studyMinutes/max)):0;const x=i*(bw+gap),y=h-padB-bh;svg+=`<rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="4" fill="url(#g1)"><title>${d.date}: ${d.studyMinutes} دقیقه</title></rect><text x="${x+bw/2}" y="${h-8}" font-size="10" fill="#8892a4" text-anchor="middle">${d.date.slice(5)}</text>`;});
   wrap.innerHTML=svg+'</svg>';
 }
 async function renderWeeklyReport(){
-  const ws=wrWeekStart,we=addDaysD(ws,6);
-  const wsStr=dateStrLocal(ws),weStr=dateStrLocal(we);
+  const ws=wrWeekStart,we=addDaysD(ws,6),wsStr=dateStrLocal(ws),weStr=dateStrLocal(we);
   $('wr-lbl').textContent=`${Jalali.formatJalali(ws,'short')} — ${Jalali.formatJalali(we,'short')}`;
-  const r=await window.api.getWeeklyReport(wsStr,weStr);
-  const body=$('wr-body');body.innerHTML='';
+  const r=await window.api.getWeeklyReport(wsStr,weStr);const body=$('wr-body');body.innerHTML='';
   if(r.totalSessions===0&&r.calTasksTotal===0){body.innerHTML='<div class="wr-empty">📊 هیچ فعالیتی در این هفته ثبت نشده</div>';return;}
   const maxM=Math.max(1,...Object.values(r.byDay).map(d=>d.studyMinutes));
   let html=`<div class="wr-summary"><div class="wr-card"><div class="wr-val">${r.totalStudyMinutes}</div><div class="wr-lbl">دقیقه مطالعه</div></div><div class="wr-card"><div class="wr-val">${r.totalSessions}</div><div class="wr-lbl">نشست تمرکز</div></div><div class="wr-card"><div class="wr-val">${r.calTasksDone}/${r.calTasksTotal}</div><div class="wr-lbl">تسک‌های تقویم</div></div><div class="wr-card"><div class="wr-val">${r.totalDistractions}</div><div class="wr-lbl">حواس‌پرتی</div></div></div>`;
   html+='<div class="wr-panel" style="margin-bottom:14px"><h3>📅 مطالعه روزانه</h3>';
   for(let i=0;i<7;i++){const d=addDaysD(ws,i),ds=dateStrLocal(d),wd=Jalali.jWeekday(d),info=r.byDay[ds]||{studyMinutes:0,sessions:0,tasksDone:0,tasksTotal:0};const pct=info.studyMinutes>0?Math.round((info.studyMinutes/maxM)*100):0;html+=`<div class="wr-day-row"><span class="wr-day-name">${Jalali.WEEKDAYS_FULL[wd]}<br><small style="color:var(--txt3)">${Jalali.formatJalali(d,'short')}</small></span><div class="wr-day-bar-wrap"><div class="wr-day-bar" style="width:${pct}%"></div></div><span class="wr-day-min">${info.studyMinutes}م</span><span class="wr-day-tasks">${info.tasksDone}/${info.tasksTotal}</span></div>`;}
   html+='</div>';
-  if(r.subjects.length){html+='<div class="wr-row"><div class="wr-panel"><h3>📚 دروس خونده‌شده</h3>';r.subjects.forEach(s=>{html+=`<div class="subj-row"><span class="subj-name">${esc(s.name)}</span><span class="subj-done">${s.done}</span><span class="subj-total">/${s.total}</span></div>`;});html+='</div><div class="wr-panel"><h3>✅ وظایف انجام‌شده</h3>';if(!r.completedStdTasks.length)html+='<p class="report-empty" style="padding:10px">هیچ وظیفه‌ای تموم نشده</p>';else r.completedStdTasks.forEach(t=>{html+=`<div class="wr-task-item"><span>✅</span><span>${esc(t.title)}</span></div>`;});html+='</div></div>';}
+  if(r.subjects.length){html+='<div class="wr-row"><div class="wr-panel"><h3>📚 دروس</h3>';r.subjects.forEach(s=>{html+=`<div class="subj-row"><span class="subj-name">${esc(s.name)}</span><span class="subj-done">${s.done}</span><span class="subj-total">/${s.total}</span></div>`;});html+='</div><div class="wr-panel"><h3>✅ وظایف انجام‌شده</h3>';if(!r.completedStdTasks.length)html+='<p class="report-empty" style="padding:10px">هیچ وظیفه‌ای تموم نشده</p>';else r.completedStdTasks.forEach(t=>{html+=`<div class="wr-task-item"><span>✅</span><span>${esc(t.title)}</span></div>`;});html+='</div></div>';}
   body.innerHTML=html;
 }
 
@@ -467,84 +485,57 @@ async function loadFeeds(){const feeds=await window.api.getFeeds();const list=$(
 async function selectFeed(id,url){activeFeedId=id;loadFeeds();await loadArticles(id,url);}
 async function loadArticles(id,url){$('news-articles').innerHTML='<div class="news-loading">⏳ در حال دریافت…</div>';const res=await window.api.fetchFeed({id,url});if(!res.ok){$('news-articles').innerHTML=`<div class="news-error">⚠️ ${esc(res.error||'خطا')}</div>`;return;}const wrap=$('news-articles');wrap.innerHTML='';if(!res.articles.length){wrap.innerHTML='<div class="news-empty-state"><p>مقاله‌ای یافت نشد</p></div>';return;}res.articles.forEach(a=>{const card=document.createElement('div');card.className='article-card';card.innerHTML=`<div class="article-title">${esc(a.title)}</div>${a.desc?`<div class="article-desc">${esc(a.desc)}</div>`:''}<div class="article-date">${esc(a.date||'')}</div>`;card.addEventListener('click',()=>{if(a.link)window.api.openURL(a.link);});wrap.appendChild(card);});}
 
-// ── AI Assistant ──────────────────────────────────────────────────────────────
-const AI_SYSTEM = `تو دستیار بهره‌وری Framan هستی. فقط در موارد زیر کمک می‌کنی:
+// ── AI ────────────────────────────────────────────────────────────────────────
+const AI_SYSTEM=`تو دستیار بهره‌وری Framan هستی. فقط در موارد زیر کمک می‌کنی:
 - برنامه‌ریزی مطالعه و وظایف
 - تحلیل الگوی عملکرد کاربر
 - پیشنهاد برای کاهش حواس‌پرتی و افزایش تمرکز
 - اولویت‌بندی وظایف
 - انگیزه‌بخشی و coaching بهره‌وری
-
-اگر سؤال خارج از این موضوعات بود، مؤدبانه توضیح بده که فقط در زمینه بهره‌وری کمک می‌کنی.
-پاسخ‌هایت کوتاه، عملی و به فارسی باشه. از markdown ساده استفاده کن.`;
-
-const QUICK_PROMPTS = {
-  plan:     ()=>buildContextMsg('لطفاً یک برنامه مطالعه برای هفته پیش رو پیشنهاد بده. وظایف من رو در نظر بگیر.'),
-  review:   ()=>buildContextMsg('عملکرد من در هفته گذشته رو بررسی کن و بهم بگو چه نکاتی داره.'),
-  improve:  ()=>buildContextMsg('با توجه به الگوی مطالعه‌ام، چه پیشنهادهایی برای بهبود بهره‌وریم داری؟'),
-  tasks:    ()=>buildContextMsg('وظایف باقی‌مانده‌ام رو اولویت‌بندی کن و بگو از کجا شروع کنم.'),
-  distract: ()=>buildContextMsg('تعداد حواس‌پرتی‌هام زیاده. چطور می‌تونم تمرکزم رو بیشتر کنم؟'),
+پاسخ‌هایت کوتاه، عملی و به فارسی باشه.`;
+const QUICK_PROMPTS={
+  plan:     ()=>buildCtx('لطفاً یک برنامه مطالعه برای هفته پیش رو پیشنهاد بده. وظایف و زیروظایف من رو در نظر بگیر.'),
+  review:   ()=>buildCtx('عملکرد من در هفته گذشته رو بررسی کن و نکات مهم رو بگو.'),
+  improve:  ()=>buildCtx('با توجه به الگوی مطالعه‌ام، چه پیشنهادهایی برای بهبود بهره‌وریم داری؟'),
+  tasks:    ()=>buildCtx('وظایف باقی‌مانده‌ام رو اولویت‌بندی کن. زیروظایف رو هم در نظر بگیر.'),
+  distract: ()=>buildCtx('تعداد حواس‌پرتی‌هام زیاده. چطور می‌تونم تمرکزم رو بیشتر کنم؟'),
 };
-
-async function buildContextMsg(userQ){
-  const stats=await window.api.getStats();
-  const pending=allTasks.filter(t=>!t.done).slice(0,8).map(t=>`- ${t.title}${t.deadline?` (مهلت: ${dlLabel(t.deadline)})`:''}${t.priority==='high'?' 🔴':''}`).join('\n');
+async function buildCtx(q){
+  const st=await window.api.getStats();
   const gamif=await window.api.getGamif();
-  return `[آمار امروز: ${stats.studyMinutes} دقیقه مطالعه، ${stats.sessionsCount} نشست، ${stats.distractionsCount} حواس‌پرتی]
-[سطح: Lv.${gamif.level} | ${gamif.currentStreak} روز متوالی]
-[وظایف در انتظار:\n${pending||'هیچی'}]
-
-${userQ}`;
+  const pending=allTasks.filter(t=>!t.done).slice(0,8).map(t=>{
+    const subs=(t.subtasks||[]).filter(s=>!s.done).map(s=>`  - ${s.title} (${s.estimatedHours}س)`).join('\n');
+    return `- ${t.title}${t.deadline?` [مهلت:${dlLabel(t.deadline)}]`:''}${subs?'\n'+subs:''}`;
+  }).join('\n');
+  return `[امروز: ${st.studyMinutes}دقیقه مطالعه، ${st.sessionsCount}نشست، ${st.distractionsCount}حواس‌پرتی]
+[سطح: Lv.${gamif.level} | ${gamif.currentStreak}روز متوالی | ${gamif.xp}XP]
+[وظایف:\n${pending||'هیچی'}]
+${q}`;
 }
-
 function bindAI(){
   $('ai-openrouter-link').addEventListener('click',()=>window.api.openURL('https://openrouter.ai'));
-  $('ai-key-save-btn').addEventListener('click',async()=>{
-    const k=$('ai-key-inp').value.trim();if(!k)return;
-    const r=await window.api.saveApiKey(k);
-    if(r.ok){aiApiKey=k;$('ai-key-status').textContent='✓ ذخیره شد';$('ai-key-inp').value='';}
-    else $('ai-key-status').textContent='⚠️ خطا در ذخیره';
-  });
-  $('ai-model-sel').addEventListener('change',async e=>{
-    aiModel=e.target.value;
-    await window.api.saveAiModel(aiModel);
-  });
-  document.querySelectorAll('.aq-btn').forEach(b=>b.addEventListener('click',async()=>{
-    if(!aiApiKey){showAIMsg('system','ابتدا کلید API رو از تنظیمات بخش AI وارد کن.');return;}
-    const msg=await QUICK_PROMPTS[b.dataset.prompt]();
-    await sendAIMessage(msg,b.textContent);
-  }));
+  $('ai-key-save-btn').addEventListener('click',async()=>{const k=$('ai-key-inp').value.trim();if(!k)return;const r=await window.api.saveApiKey(k);if(r.ok){aiApiKey=k;$('ai-key-status').textContent='✓ ذخیره شد';$('ai-key-inp').value='';}else $('ai-key-status').textContent='⚠️ خطا';});
+  const mSel=$('ai-model-sel');if(mSel)mSel.addEventListener('change',async e=>{aiModel=e.target.value;await window.api.saveAiModel(aiModel);});
+  document.querySelectorAll('.aq-btn').forEach(b=>b.addEventListener('click',async()=>{if(!aiApiKey){showAIMsg('system','ابتدا کلید API رو وارد کن.');return;}const msg=await QUICK_PROMPTS[b.dataset.prompt]();await sendAIMsg(msg,b.textContent);}));
   $('ai-send-btn').addEventListener('click',sendAIFromInput);
   $('ai-inp').addEventListener('keydown',e=>{if(e.key==='Enter')sendAIFromInput();});
 }
-async function sendAIFromInput(){
-  const txt=$('ai-inp').value.trim();if(!txt)return;
-  if(!aiApiKey){showAIMsg('system','ابتدا کلید API رو از بخش راست وارد کن.');return;}
-  $('ai-inp').value='';
-  const msg=await buildContextMsg(txt);
-  await sendAIMessage(msg,txt);
-}
-async function sendAIMessage(fullMsg,displayMsg){
+async function sendAIFromInput(){const txt=$('ai-inp').value.trim();if(!txt)return;if(!aiApiKey){showAIMsg('system','ابتدا کلید API رو وارد کن.');return;}$('ai-inp').value='';await sendAIMsg(await buildCtx(txt),txt);}
+async function sendAIMsg(fullMsg,displayMsg){
   showAIMsg('user',displayMsg);showAIMsg('loading','...');
   aiMessages.push({role:'user',content:fullMsg});
   const msgs=[{role:'system',content:AI_SYSTEM},...aiMessages.slice(-6)];
   const res=await window.api.aiChat(msgs,aiApiKey,aiModel);
   removeLoadingMsg();
-  if(res.ok){
-    showAIMsg('assistant',res.text);
-    aiMessages.push({role:'assistant',content:res.text});
-  } else {
-    showAIMsg('error',`⚠️ ${res.error}`);
-    aiMessages.pop();
-  }
+  if(res.ok){showAIMsg('assistant',res.text);aiMessages.push({role:'assistant',content:res.text});}
+  else{showAIMsg('error',`⚠️ ${res.error}`);aiMessages.pop();}
 }
 function showAIMsg(role,text){
-  const msgs=$('ai-messages');
-  const welcome=$('ai-welcome');if(welcome)welcome.style.display='none';
+  const msgs=$('ai-messages');const welcome=$('ai-welcome');if(welcome)welcome.style.display='none';
   const el=document.createElement('div');
   if(role==='loading'){el.className='ai-msg ai-msg-loading';el.id='ai-loading-msg';el.innerHTML='<span class="ai-typing">●●●</span>';}
   else if(role==='user'){el.className='ai-msg ai-msg-user';el.textContent=text;}
-  else if(role==='assistant'){el.className='ai-msg ai-msg-bot';el.innerHTML=text.replace(/\n/g,'<br>');}
+  else if(role==='assistant'){el.className='ai-msg ai-msg-bot';el.innerHTML=text.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');}
   else{el.className='ai-msg ai-msg-sys';el.textContent=text;}
   msgs.appendChild(el);msgs.scrollTop=msgs.scrollHeight;
 }
@@ -556,8 +547,8 @@ function bindSettings(){
   $('confirm-no')    .addEventListener('click',()=>$('confirm-modal').classList.add('hidden'));
   $('confirm-yes')   .addEventListener('click',async()=>{await window.api.clearData();allTasks=[];allNotes=[];activeNoteId=null;renderTasks();await refreshDashboard();await refreshGamifBar();$('confirm-modal').classList.add('hidden');loadSettings();renderCurrentView();});
   $('test-notif-btn').addEventListener('click',async()=>await window.api.testNotify());
-  $('goal-save-btn') .addEventListener('click',async()=>{const v=parseInt($('goal-inp').value)||300;await window.api.setGoal(v);refreshGamifBar();});
-  $('run-cleanup-btn').addEventListener('click',async()=>{const days=parseInt($('cleanup-days-inp').value)||90;await window.api.setCleanupSettings({daysToKeep:days,autoCleanup:$('cleanup-auto-chk').checked});const r=await window.api.runCleanup(days);$('cleanup-result').textContent=`✅ پاک شد: ${r.removedSessions} جلسه، ${r.removedCalTasks} تسک تقویم، ${r.removedTasks} وظیفه`;setTimeout(()=>{if($('cleanup-result'))$('cleanup-result').textContent='';},4000);});
+  $('goal-save-btn').addEventListener('click',async()=>{const v=parseInt($('goal-inp').value)||300;await window.api.setGoal(v);refreshGamifBar();});
+  $('run-cleanup-btn').addEventListener('click',async()=>{const days=parseInt($('cleanup-days-inp').value)||90;await window.api.setCleanupSettings({daysToKeep:days,autoCleanup:$('cleanup-auto-chk').checked});const r=await window.api.runCleanup(days);$('cleanup-result').textContent=`✅ پاک شد: ${r.removedSessions} جلسه، ${r.removedCalTasks} تسک، ${r.removedTasks} وظیفه`;setTimeout(()=>{if($('cleanup-result'))$('cleanup-result').textContent='';},4000);});
   $('cleanup-days-inp').addEventListener('change',async()=>{await window.api.setCleanupSettings({daysToKeep:parseInt($('cleanup-days-inp').value)||90,autoCleanup:$('cleanup-auto-chk').checked});});
   $('cleanup-auto-chk').addEventListener('change',async()=>{await window.api.setCleanupSettings({daysToKeep:parseInt($('cleanup-days-inp').value)||90,autoCleanup:$('cleanup-auto-chk').checked});});
 }
@@ -565,26 +556,74 @@ async function loadSettings(){const st=await window.api.getStats(),goal=await wi
 
 // ── Modals ────────────────────────────────────────────────────────────────────
 function bindModals(){
+  // Session done
   $('sess-modal-ok').addEventListener('click',()=>{$('sess-modal').classList.add('hidden');$('sess-break-btn').classList.remove('hidden');});
-  $('sess-break-btn').addEventListener('click',()=>{$('sess-modal').classList.add('hidden');navTo('focus');startBreak(5);});
+  $('sess-break-btn').addEventListener('click',()=>{$('sess-modal').classList.add('hidden');navTo('focus');const isLong=sessionsDone%customSessionCount===0;startBreak(isLong?customBreakMin*3:customBreakMin);});
+  // Day report
   $('day-modal-close').addEventListener('click',()=>$('day-modal').classList.add('hidden'));
   $('day-modal-add') .addEventListener('click',()=>{$('day-modal').classList.add('hidden');openCalModal(dayModalDate,'anytime',()=>renderCurrentView());});
+  // Cal modal
   $('cal-modal-close').addEventListener('click',()=>$('cal-modal').classList.add('hidden'));
   $('cm-cancel')      .addEventListener('click',()=>$('cal-modal').classList.add('hidden'));
   $('cm-save')        .addEventListener('click',saveCalTask);
   $('cm-title')       .addEventListener('keydown',e=>{if(e.key==='Enter')saveCalTask();});
   $('cm-task-ref').addEventListener('change',e=>{if(e.target.value)$('cm-title').value=e.target.value;});
   $('cm-recurring').addEventListener('change',e=>{$('recurring-opts').classList.toggle('hidden',!e.target.checked);});
+  // Level up
   $('levelup-ok').addEventListener('click',()=>$('levelup-modal').classList.add('hidden'));
-  ['sess-modal','day-modal','cal-modal','confirm-modal','levelup-modal'].forEach(id=>{$(id).addEventListener('click',e=>{if(e.target.id===id)$(id).classList.add('hidden');});});
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')['sess-modal','day-modal','cal-modal','confirm-modal','levelup-modal'].forEach(id=>$(id).classList.add('hidden'));});
+  // Confirm
+  // Edit task modal
+  $('edit-task-close') .addEventListener('click',()=>$('edit-task-modal').classList.add('hidden'));
+  $('edit-task-cancel').addEventListener('click',()=>$('edit-task-modal').classList.add('hidden'));
+  $('edit-task-save')  .addEventListener('click',async()=>{
+    const title=$('edit-task-title').value.trim();if(!title)return;
+    const u=await window.api.updateTask(editTaskId,{title,priority:$('edit-task-prio').value});
+    if(u){const i=allTasks.findIndex(t=>t.id===editTaskId);if(i>=0)allTasks[i]={...allTasks[i],...u};}
+    $('edit-task-modal').classList.add('hidden');renderTasks();if(curSection==='dashboard')refreshDashboard();
+  });
+  $('edit-task-title').addEventListener('keydown',e=>{if(e.key==='Enter')$('edit-task-save').click();});
+  // Subtask modal
+  $('subtask-modal-close').addEventListener('click',()=>$('subtask-modal').classList.add('hidden'));
+  $('st-cancel')          .addEventListener('click',()=>$('subtask-modal').classList.add('hidden'));
+  $('st-hours').addEventListener('input',updatePerPart);$('st-parts').addEventListener('input',updatePerPart);
+  $('st-save').addEventListener('click',async()=>{
+    const title=$('st-title').value.trim();if(!title){$('st-title-err').classList.remove('hidden');return;}
+    $('st-title-err').classList.add('hidden');
+    const r=await window.api.addSubtask(activeSubtaskTaskId,{title,estimatedHours:parseFloat($('st-hours').value)||1,parts:parseInt($('st-parts').value)||1});
+    if(r){const i=allTasks.findIndex(t=>t.id===activeSubtaskTaskId);if(i>=0)allTasks[i]=r.task;}
+    $('subtask-modal').classList.add('hidden');renderTasks();
+  });
+  $('st-title').addEventListener('keydown',e=>{if(e.key==='Enter')$('st-save').click();});
+  // Custom timer modal
+  $('ct-close') .addEventListener('click',()=>$('custom-timer-modal').classList.add('hidden'));
+  $('ct-cancel').addEventListener('click',()=>$('custom-timer-modal').classList.add('hidden'));
+  $('ct-apply') .addEventListener('click',()=>{
+    const min=parseInt($('ct-minutes').value)||25;
+    customBreakMin=parseInt($('ct-break').value)||5;
+    customSessionCount=parseInt($('ct-sessions').value)||4;
+    // آپدیت دکمه‌های preset
+    document.querySelectorAll('.dur').forEach(b=>b.classList.remove('active'));
+    tmr.totalSec=min*60;
+    $('t-time').textContent=`${fmt(Math.floor(min))}:00`;
+    $('t-ring').style.strokeDashoffset='0';
+    $('custom-timer-modal').classList.add('hidden');
+    window.api.notify({title:'⚙️ تایمر تنظیم شد',body:`${min} دقیقه تمرکز، ${customBreakMin} دقیقه استراحت`});
+  });
+  // Escape & backdrop
+  ['sess-modal','day-modal','cal-modal','confirm-modal','levelup-modal','edit-task-modal','subtask-modal','custom-timer-modal'].forEach(id=>{
+    const el=$(id);if(!el)return;el.addEventListener('click',e=>{if(e.target.id===id)el.classList.add('hidden');});
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape')['sess-modal','day-modal','cal-modal','confirm-modal','levelup-modal','edit-task-modal','subtask-modal','custom-timer-modal'].forEach(id=>{const el=$(id);if(el)el.classList.add('hidden');});
+  });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function $(id){return document.getElementById(id);}
-function tog(id,hide){$(id).classList.toggle('hidden',hide);}
+function tog(id,hide){const el=$(id);if(el)el.classList.toggle('hidden',hide);}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function fmt(n){return String(n).padStart(2,'0');}
+function p2(n){return String(n).padStart(2,'0');}
 function minsec(s){return `${Math.floor(s/60)} دقیقه و ${s%60} ثانیه`;}
 function pcls(p){return p==='high'?'ph':p==='low'?'pl':'pm';}
 function plbl(p){return p==='high'?'🔴 مهم':p==='low'?'🟢 عادی':'🟡 متوسط';}

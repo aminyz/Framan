@@ -110,6 +110,10 @@ ipcMain.handle('add-task',        (_,d)      => storage.addTask(d));
 ipcMain.handle('toggle-task',     (_,id)     => storage.toggleTask(id));
 ipcMain.handle('delete-task',     (_,id)     => storage.deleteTask(id));
 ipcMain.handle('update-deadline', (_,{id,deadline}) => storage.updateTaskDeadline(id,deadline));
+ipcMain.handle('update-task',     (_,{id,...d})  => storage.updateTask(id,d));
+ipcMain.handle('add-subtask',     (_,{taskId,...d})  => storage.addSubtask(taskId,d));
+ipcMain.handle('toggle-subtask',  (_,{taskId,subtaskId}) => storage.toggleSubtask(taskId,subtaskId));
+ipcMain.handle('delete-subtask',  (_,{taskId,subtaskId}) => storage.deleteSubtask(taskId,subtaskId));
 
 ipcMain.handle('get-cal-date',    (_,date)   => storage.getCalByDate(date));
 ipcMain.handle('get-cal-range',   (_,{s,e})  => storage.getCalByRange(s,e));

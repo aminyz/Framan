@@ -24,8 +24,9 @@ function addTask({title, priority, deadline}) {
   const tasks = getTasks();
   const t = {
     id: `t${Date.now()}`, title: title.trim(), priority: priority||'medium',
-    deadline: deadline||null,
-    done: false, createdAt: new Date().toISOString(), completedAt: null
+    deadline: deadline||null, done: false,
+    subtasks: [],
+    createdAt: new Date().toISOString(), completedAt: null
   };
   tasks.push(t); wr('tasks.json', tasks); return t;
 }
@@ -38,6 +39,42 @@ function deleteTask(id) { wr('tasks.json',getTasks().filter(t=>t.id!==id)); retu
 function updateTaskDeadline(id, deadline) {
   const tasks=getTasks(), t=tasks.find(x=>x.id===id); if(!t) return null;
   t.deadline=deadline||null; wr('tasks.json',tasks); return t;
+}
+function updateTask(id, {title, priority}) {
+  const tasks=getTasks(), t=tasks.find(x=>x.id===id); if(!t) return null;
+  if(title) t.title=title.trim();
+  if(priority) t.priority=priority;
+  wr('tasks.json',tasks); return t;
+}
+
+// ── Sub-tasks ─────────────────────────────────────────────────────────────────
+function addSubtask(taskId, {title, estimatedHours, parts}) {
+  const tasks=getTasks(), t=tasks.find(x=>x.id===taskId); if(!t) return null;
+  if(!t.subtasks) t.subtasks=[];
+  const minutesPerPart = parts>0 ? Math.round((estimatedHours*60)/parts) : estimatedHours*60;
+  const st = {
+    id: `st${Date.now()}`, title: title.trim(),
+    estimatedHours: estimatedHours||1, parts: parts||1,
+    minutesPerPart, done: false, createdAt: new Date().toISOString()
+  };
+  t.subtasks.push(st); wr('tasks.json',tasks); return {task:t, subtask:st};
+}
+function toggleSubtask(taskId, subtaskId) {
+  const tasks=getTasks(), t=tasks.find(x=>x.id===taskId); if(!t) return null;
+  const st=t.subtasks?.find(x=>x.id===subtaskId); if(!st) return null;
+  st.done=!st.done;
+  // اگه همه subtask ها done بودن، task اصلی هم done بشه
+  if(t.subtasks.every(s=>s.done)&&!t.done){
+    t.done=true; t.completedAt=new Date().toISOString();
+  } else if(!t.subtasks.every(s=>s.done)&&t.done){
+    t.done=false; t.completedAt=null;
+  }
+  wr('tasks.json',tasks); return t;
+}
+function deleteSubtask(taskId, subtaskId) {
+  const tasks=getTasks(), t=tasks.find(x=>x.id===taskId); if(!t) return null;
+  t.subtasks=(t.subtasks||[]).filter(s=>s.id!==subtaskId);
+  wr('tasks.json',tasks); return t;
 }
 
 // ── Calendar Tasks ────────────────────────────────────────────────────────────
@@ -327,7 +364,8 @@ function localDateMinus(n) {
 
 module.exports = {
   init,
-  getTasks,addTask,toggleTask,deleteTask,updateTaskDeadline,
+  getTasks,addTask,toggleTask,deleteTask,updateTaskDeadline,updateTask,
+  addSubtask,toggleSubtask,deleteSubtask,
   getCalTasks,addCalTask,toggleCalTask,deleteCalTask,getCalByDate,getCalByRange,
   getSessions,addSession,
   getTodayStats,getMonthStats,getDateRangeStats,getDayReport,getAnalyticsData,getWeeklyStudyMinutes,

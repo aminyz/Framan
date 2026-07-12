@@ -1,6 +1,6 @@
 {
-  "name": "framan",
-  "version": "1.0.0",
+  "name": "minddock",
+  "version": "1.1.0",
   "description": "Framan — پلتفرم مدیریت بهره‌وری شخصی",
   "main": "src/main.js",
   "author": "aminyz",
@@ -11,18 +11,25 @@
   "build": {
     "appId": "com.framan.app",
     "productName": "Framan",
-    "directories": {
-      "output": "dist"
-    },
+    "asar": true,
+    "directories": { "output": "dist" },
     "win": {
-      "target": "nsis",
-      "icon": "assets/icon.ico"
+      "target": [
+        { "target": "nsis",     "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "artifactName": "Framan-${version}-${arch}-${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerLanguages": ["fa-IR", "en-US"],
-      "language": "1065"
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Framan"
+    },
+    "portable": {
+      "artifactName": "Framan-${version}-portable.exe"
     }
   },
   "devDependencies": {
