@@ -76,23 +76,30 @@ function createWindow() {
 app.whenReady().then(()=>{
   storage.init();
 
-  // ── مهاجرت داده از پوشه‌های قدیمی (MindDock / Framan) ──────────────────
-  const userData = app.getPath('userData'); // = AppData/Roaming/minddock
-  const dataFiles = ['tasks.json','cal-tasks.json','sessions.json','gamif.json','notes.json','goal.json','cleanup.json','news-feeds.json'];
-  const oldFolders = [
-    path.join(userData,'..','MindDock'),
-    path.join(userData,'..','Framan'),
-    path.join(userData,'..','framan'),
-  ];
-  for(const oldDir of oldFolders){
-    if(!fs.existsSync(oldDir)) continue;
-    dataFiles.forEach(f=>{
-      const src=path.join(oldDir,f), dst=path.join(userData,f);
-      if(fs.existsSync(src)&&!fs.existsSync(dst)){
-        try{ fs.copyFileSync(src,dst); }catch(e){ console.error('migrate:',e); }
-      }
-    });
+  // ── مهاجرت داده از پوشه‌های قدیمی — فقط یک‌بار اجرا می‌شود ──────────────
+  const userData = app.getPath('userData');
+  const migrationFlag = path.join(userData, 'migration-v1-done');
+
+  if (!fs.existsSync(migrationFlag)) {
+    const dataFiles = ['tasks.json','cal-tasks.json','sessions.json','gamif.json','notes.json','goal.json','cleanup.json','news-feeds.json'];
+    const oldFolders = [
+      path.join(userData,'..','MindDock'),
+      path.join(userData,'..','Framan'),
+      path.join(userData,'..','framan'),
+    ];
+    for(const oldDir of oldFolders){
+      if(!fs.existsSync(oldDir)) continue;
+      dataFiles.forEach(f=>{
+        const src=path.join(oldDir,f), dst=path.join(userData,f);
+        if(fs.existsSync(src)&&!fs.existsSync(dst)){
+          try{ fs.copyFileSync(src,dst); }catch(e){ console.error('migrate:',e); }
+        }
+      });
+    }
+    // ثبت flag تا migration دوباره اجرا نشود
+    try{ fs.writeFileSync(migrationFlag,'1','utf8'); }catch{}
   }
+
   // اجرای cleanup خودکار هنگام شروع
   const cs=storage.getCleanupSettings();
   if(cs.autoCleanup) storage.cleanupOldData(cs.daysToKeep);
